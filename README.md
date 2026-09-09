@@ -100,7 +100,7 @@ fraud-detection-platform/
 
 ### 1. Environment Initialization
 ```bash
-git clone [Your Repository URL Here]
+git clone https://github.com/Shashank17singh/Agentic-Fraud-Sentinel.git
 cd Agentic-Fraud-Sentinel
 python -m venv venv
 source venv/bin/activate      # Linux/Mac
@@ -115,5 +115,5 @@ Download the IEEE-CIS Fraud Detection dataset from [Kaggle](https://www.kaggle.c
 
 ### 3. Deployment
 *(Update this section with your deployment instructions or Cloud Provider details once live).*
-- **API URL:** `[Your Deployment URL]/docs`
-- **Dashboard URL:** `[Your Deployment URL]`
+- **API URL:** https://agentic-fraud-sentinel.onrender.com/docs
+- **Dashboard URL:** [Your Streamlit Cloud URL]
