@@ -18,7 +18,7 @@ else:
 
 MODEL_PATH = os.path.join(DATA_DIR, "models", "xgboost_production.pkl")
 EXPLAINER_PATH = os.path.join(DATA_DIR, "models", "shap_explainer.pkl")
-TRAIN_PATH = os.path.join(DATA_DIR, "processed", "X_train.parquet")
+
 
 print("Loading model bundle...")
 bundle = joblib.load(MODEL_PATH)

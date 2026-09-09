@@ -21,7 +21,7 @@ COPY src/ ./src/
 COPY api/ ./api/
 
 COPY notebooks/data/models/ ./data/models/
-COPY notebooks/data/processed/X_train.parquet ./data/processed
+
 
 ENV PYTHONAPP=/app
 

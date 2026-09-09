@@ -21,7 +21,7 @@ else:
     DATA_DIR = os.path.join(BASE_DIR, "notebooks", "data")
 
 
-TRAINER_PATH = os.path.join(DATA_DIR, "processed", "X_train.parquet")
+
 
 
 from src.agents.graph import build_fraud_graph
