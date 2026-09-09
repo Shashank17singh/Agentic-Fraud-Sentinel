@@ -6,7 +6,7 @@ This repository demonstrates an end-to-end FinTech machine learning lifecycle—
 
 ---
 
-##  Architecture Overview
+## Architecture Overview
 
 The platform processes the standard **IEEE-CIS Dataset** (590k transactions) through a multi-stage pipeline:
 
