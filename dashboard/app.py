@@ -262,11 +262,3 @@ if not df.empty:
 # Footer
 
 st.divider()
-st.markdown(
-    """
-    <div style='text-align: center; color: grey; font-size: 12px'>
-    Agentic-Fraud-Sentinel — XGBoost + LangGraph + SHAP + FastAPI
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
