@@ -29,8 +29,8 @@ from src.agents.graph import build_fraud_graph
 # App setup
 
 app = FastAPI(
-    title="Fraud detection API",
-    description="Multi agent fraud detection -XGBoost and Langgraph",
+    title="Agentic-Fraud-Sentinel API",
+    description="Multi agent fraud detection - XGBoost and LangGraph",
     version="1.0.0",
 )
 
