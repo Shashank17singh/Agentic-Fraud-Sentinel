@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import streamlit as st
 
-API_URL = "https://fraud-detection-platform-production.up.railway.app"
+API_URL = "https://agentic-fraud-sentinel.onrender.com"
 
 
 # Page config
