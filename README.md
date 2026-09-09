@@ -15,6 +15,42 @@
 
 ## Architecture Overview
 
+```mermaid
+graph TD
+    subgraph "Data & Training Pipeline"
+    A[IEEE-CIS Dataset] -->|Feature Engineering| B(Temporal Splits)
+    B -->|SMOTE Balancing| C{XGBoost Classifier}
+    C -->|Optuna Tuning| D[models/xgboost_production.pkl]
+    end
+    
+    subgraph "Inference & Explainability"
+    D --> E(FastAPI Backend)
+    E -->|TreeExplainer| F[SHAP Values]
+    end
+    
+    subgraph "Agentic AI (LangGraph)"
+    E --> G((Risk Scorer Agent))
+    F --> H((Explainer Agent))
+    G --> I((Policy Agent))
+    H --> I
+    I -->|Audit Trail| J((Report Agent))
+    end
+    
+    subgraph "User Interface"
+    J -->|Real-Time Insights| K[Streamlit Dashboard]
+    end
+    
+    classDef data fill:#f9f0ff,stroke:#8a2be2,stroke-width:2px,color:#000;
+    classDef core fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#000;
+    classDef agent fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000;
+    classDef ui fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000;
+    
+    class A,B data;
+    class C,D,E,F core;
+    class G,H,I,J agent;
+    class K ui;
+```
+
 The platform processes the standard **IEEE-CIS Dataset** (590k transactions) through a multi-stage pipeline:
 
 ### 1. Data & Feature Engineering Layer
