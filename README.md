@@ -70,7 +70,7 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 ## Project Structure
 
 ```text
-fraud-detection-platform/
+Agentic-Fraud-Sentinel/
 ├── data/
 │   ├── raw/                  # IEEE-CIS source CSVs
 │   └── processed/            # Engineered, split, balanced data
@@ -89,8 +89,7 @@ fraud-detection-platform/
 │   └── main.py               # FastAPI application
 ├── dashboard/
 │   └── app.py                # Streamlit monitoring UI
-├── docker/
-│   └── Dockerfile            # Container configuration
+├── Dockerfile                # Container configuration
 └── requirements.txt          # Python dependencies
 ```
 
