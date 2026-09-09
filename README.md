@@ -2,7 +2,7 @@
 
 # Agentic-Fraud-Sentinel
 
-**A production-grade fraud detection system using Scikit-learn ensemble classifiers with feature importance analysis, SMOTE class balancing, and a real-time FastAPI backend.**
+**A production-grade fraud detection system using Scikit-learn ensemble classifiers with feature importance analysis, strict class balancing weights, and a real-time FastAPI backend.**
 
 [![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Scikit-learn](https://img.shields.io/badge/Scikit--learn-Machine%20Learning-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -19,7 +19,7 @@
 graph TD
     subgraph "Data & Training Pipeline"
     A[IEEE-CIS Dataset] -->|Feature Engineering| B(Temporal Splits)
-    B -->|SMOTE Balancing| C{Random Forest Classifier}
+    B -->|Class Weights Balancing| C{Random Forest Classifier}
     C -->|GridSearchCV Tuning| D[models/rf_production.pkl]
     end
     
@@ -50,7 +50,7 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 
 | Component | Description |
 |---|---|
-| **Data & Feature Engineering** | Performs time-based splitting (by `TransactionDT`) to simulate real-world data drift. Implements rolling aggregates, frequency encoding, missingness flags, and SMOTE to balance class representation (3.5% to 10% fraud). |
+| **Data & Feature Engineering** | Performs time-based splitting (by `TransactionDT`) to simulate real-world data drift. Implements rolling aggregates, frequency encoding, missingness flags, and class weights to balance representation (3.5% to 10% fraud). |
 | **Classical ML Core** | Trains a Random Forest classifier tuned via GridSearchCV and calibrated using precision-recall curve analysis for optimal operational decision boundaries. |
 | **Interpretability Layer** | Uses Scikit-learn feature importances to generate per-prediction feature attribution for model transparency and interpretability. |
 | **Deployment Services** | Fully containerized environment featuring a FastAPI backend (`/predict`) and a real-time Streamlit monitoring dashboard. |
@@ -77,7 +77,7 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 | Component | Technologies |
 |:---|:---|
 | **Data Processing** | `pandas`, `numpy`, `scikit-learn` |
-| **Imbalanced Learning** | `imbalanced-learn` (SMOTE) |
+| **Imbalanced Learning** | `Class Weights Integration` |
 | **Machine Learning** | `Scikit-learn` (Random Forest, Gradient Boosting) |
 | **Hyperparameter Tuning** | `GridSearchCV`, `Cross-Validation` |
 | **Interpretability** | `Scikit-learn Feature Importances` |
