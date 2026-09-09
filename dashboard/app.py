@@ -11,12 +11,12 @@ API_URL = "https://agentic-fraud-sentinel.onrender.com"
 # Page config
 
 st.set_page_config(
-    page_title="Fraud detection Dashboard", page_icon="🔍", layout="wide"
+    page_title="Agentic-Fraud-Sentinel", layout="wide"
 )
 
 # Header
 
-st.title("🔍 Fraud Detection Monitoring Dahboard")
+st.title("Agentic-Fraud-Sentinel Dashboard")
 st.markdown("Real-time monitoring of the multi-agent fraud detection system")
 st.divider()
 
@@ -265,8 +265,7 @@ st.divider()
 st.markdown(
     """
     <div style='text-align: center; color: grey; font-size: 12px'>
-    Agentic Fraud Detection Platform — 
-    XGBoost + LangGraph + SHAP + FastAPI
+    Agentic-Fraud-Sentinel — XGBoost + LangGraph + SHAP + FastAPI
     </div>
     """,
     unsafe_allow_html=True,
