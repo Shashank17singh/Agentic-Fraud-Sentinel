@@ -1,8 +1,15 @@
+<div align="center">
+
 # Agentic-Fraud-Sentinel
 
-A production-grade fraud detection system combining classical Machine Learning with a multi-agent orchestration pipeline, SHAP explainability, and a real-time monitoring dashboard. 
+**A production-grade fraud detection system combining XGBoost with a multi-agent LangGraph orchestration pipeline, SHAP explainability, and a real-time FastAPI backend.**
 
-This repository demonstrates an end-to-end FinTech machine learning lifecycle—from handling massively imbalanced tabular data to deploying an inference API backed by LLM-powered explanatory agents.
+[![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![XGBoost](https://img.shields.io/badge/XGBoost-Machine%20Learning-342B5B?style=for-the-badge&logo=xgboost&logoColor=white)](https://xgboost.readthedocs.io/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
+
+</div>
 
 ---
 
