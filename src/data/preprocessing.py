@@ -4,8 +4,7 @@ import os
 import joblib
 import numpy as np
 import pandas as pd
-# pyrefly: ignore [missing-import]
-from imblearn.over_sampling import SMOTE
+# Removed SMOTE import
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import LabelEncoder
 
@@ -64,25 +63,7 @@ def encode_categoricals(train, test):
     return train, test
 
 
-def apply_smote(X_train, Y_train, sampling_strategy=0.1, random_state=42):
-    if isinstance(Y_train, pd.DataFrame):
-        Y_train = Y_train.iloc[:, 0]
-    Y_train = Y_train.astype(int)
-    X_train = X_train.reset_index(drop=True)
-    Y_train = Y_train.reset_index(drop=True)
-    print(f"X_train rows: {len(X_train):,} | Y_train rows: {len(Y_train):,}")
-    assert len(X_train) == len(Y_train), f"Misaligned: {len(X_train)} vs {len(Y_train)}"
-    print(
-        f"Before SMOTE � fraud: {int(Y_train.sum()):,} / {len(Y_train):,} ({Y_train.mean():.3%})"
-    )
-    sm = SMOTE(sampling_strategy=sampling_strategy, random_state=random_state)
-    X_res, Y_res = sm.fit_resample(X_train, Y_train)
-    print(
-        f"After SMOTE  � fraud: {int(Y_res.sum()):,} / {len(Y_res):,} ({pd.Series(Y_res).mean():.3%})"
-    )
-    return pd.DataFrame(X_res, columns=X_train.columns), pd.Series(
-        Y_res, name="isFraud"
-    )
+# SMOTE has been removed as per user requirements. Class imbalance will be handled via class_weights in the model directly.
 
 
 def save_processed(X_train, X_test, Y_train, Y_test):
@@ -172,9 +153,8 @@ def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
     print(f"X_train: {len(X_train):,} rows | Y_train: {len(Y_train):,} rows")
     print(f"X_test:  {len(X_test):,} rows  | Y_test:  {len(Y_test):,} rows")
 
-    # 7. SMOTE on training only
-    print("\nApplying SMOTE...")
-    X_train, Y_train = apply_smote(X_train, Y_train)
+    # Removed SMOTE
+    # X_train, Y_train = apply_smote(X_train, Y_train)
 
     # 8. Save
     print("\nSaving...")
