@@ -51,31 +51,19 @@ graph TD
     class K ui;
 ```
 
-The platform processes the standard **IEEE-CIS Dataset** (590k transactions) through a multi-stage pipeline:
+The platform processes the standard **IEEE-CIS Dataset** (590k transactions) through a multi-stage pipeline.
 
-### 1. Data & Feature Engineering Layer
-- **Temporal Splitting:** Time-based train/test split (80/20 by `TransactionDT`) to simulate real-world production deployment.
-- **Feature Engineering:** Implemented rolling aggregates, frequency encoding, missingness flags, and time-based features.
-- **Class Balancing:** Utilized SMOTE (Synthetic Minority Over-sampling Technique) to address extreme class imbalance (3.5% → 10% fraud).
+---
 
-### 2. Classical ML Core
-- **Classifier:** XGBoost optimized for tabular data inference.
-- **Hyperparameter Tuning:** Optuna framework integrated for automated optimization (50 trials, 9 parameters).
-- **Threshold Optimization:** Precision-recall curve analysis for optimal operational decision boundaries.
+## Features
 
-### 3. Explainability Layer
-- **SHAP Integration:** TreeExplainer deployed for per-prediction feature attribution to satisfy regulatory explainability requirements.
-
-### 4. Agentic AI Pipeline (LangGraph)
-- **Risk Scorer Agent:** Computes fraud probability + risk tier.
-- **Explainer Agent:** Translates SHAP values into human-readable rationale.
-- **Policy Agent:** Executes business logic (Approve / Flag / Deny).
-- **Report Agent:** Generates a complete audit trail for compliance.
-
-### 5. Deployment Services
-- **Backend:** FastAPI REST service (`POST /predict`, `GET /health`, `GET /metrics`).
-- **Frontend:** Streamlit monitoring dashboard.
-- **Infrastructure:** Fully containerized with Docker.
+| Component | Description |
+|---|---|
+| **Data & Feature Engineering** | Performs time-based splitting (by `TransactionDT`) to simulate real-world data drift. Implements rolling aggregates, frequency encoding, missingness flags, and SMOTE to balance class representation (3.5% → 10% fraud). |
+| **Classical ML Core** | Trains an XGBoost classifier automatically tuned via Optuna (50 trials, 9 parameters) and calibrated using precision-recall curve analysis for optimal operational decision boundaries. |
+| **Explainability Layer** | Deploys SHAP (TreeExplainer) to generate per-prediction feature attribution, satisfying rigorous financial regulatory compliance requirements. |
+| **Agentic AI (LangGraph)** | Orchestrates multiple LLM agents: a Risk Scorer, an Explainer (translating SHAP to English), a Policy Agent (business rules), and a Report Agent (audit generation). |
+| **Deployment Services** | Fully containerized environment featuring a FastAPI backend (`/predict`) and a real-time Streamlit monitoring dashboard. |
 
 ---
 
@@ -159,3 +147,12 @@ Download the IEEE-CIS Fraud Detection dataset from [Kaggle](https://www.kaggle.c
 *(Update this section with your deployment instructions or Cloud Provider details once live).*
 - **API URL:** https://agentic-fraud-sentinel.onrender.com/docs
 - **Dashboard URL:** [Your Streamlit Cloud URL]
+
+---
+
+## CI/CD Pipeline
+
+This repository is equipped with a GitHub Actions workflow (`.github/workflows/ci.yml`). Every push to the `main` branch triggers:
+1. **Formatting Checks**: Ensures compliance with `black` and `isort`.
+2. **Linting**: Runs `flake8` to catch syntax errors and undefined variables.
+3. **Unit Tests**: Executes the `pytest` suite to ensure API and model stability.
