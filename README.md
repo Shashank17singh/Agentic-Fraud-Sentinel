@@ -1,4 +1,4 @@
-# Agentic Credit Risk & Fraud Detection Platform
+# Agentic-Fraud-Sentinel
 
 A production-grade fraud detection system combining classical Machine Learning with a multi-agent orchestration pipeline, SHAP explainability, and a real-time monitoring dashboard. 
 
@@ -6,7 +6,7 @@ This repository demonstrates an end-to-end FinTech machine learning lifecycle—
 
 ---
 
-## 🏗️ Architecture Overview
+##  Architecture Overview
 
 The platform processes the standard **IEEE-CIS Dataset** (590k transactions) through a multi-stage pipeline:
 
@@ -36,7 +36,7 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 
 ---
 
-## 📊 Model Performance Metrics
+## Model Performance Metrics
 
 | Optimization Stage | AUC-ROC | AUC-PR | Precision | Recall | F1 Score |
 |:---|:---:|:---:|:---:|:---:|:---:|
@@ -51,7 +51,7 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Component | Technologies |
 |:---|:---|
@@ -67,7 +67,7 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
 fraud-detection-platform/
@@ -96,12 +96,12 @@ fraud-detection-platform/
 
 ---
 
-## 🚀 Setup & Execution
+## Setup & Execution
 
 ### 1. Environment Initialization
 ```bash
 git clone [Your Repository URL Here]
-cd fraud-detection-platform
+cd Agentic-Fraud-Sentinel
 python -m venv venv
 source venv/bin/activate      # Linux/Mac
 venv\Scripts\activate         # Windows
