@@ -2,10 +2,11 @@
 
 # Agentic-Fraud-Sentinel
 
-**A production-grade fraud detection system using Scikit-learn ensemble classifiers with feature importance analysis, SMOTE class balancing, and a real-time FastAPI backend.**
+**A production-grade fraud detection system using XGBoost classifiers with LangGraph-based multi-agent routing, strict class balancing weights, and a real-time FastAPI backend.**
 
 [![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![Scikit-learn](https://img.shields.io/badge/Scikit--learn-Machine%20Learning-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
+[![XGBoost](https://img.shields.io/badge/XGBoost-Machine%20Learning-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://xgboost.readthedocs.io/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agentic%20Routing-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://python.langchain.com/docs/langgraph)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
 
@@ -19,13 +20,13 @@
 graph TD
     subgraph "Data & Training Pipeline"
     A[IEEE-CIS Dataset] -->|Feature Engineering| B(Temporal Splits)
-    B -->|SMOTE Balancing| C{Random Forest Classifier}
+    B -->|Class Weights Balancing| C{XGBoost Classifier}
     C -->|GridSearchCV Tuning| D[models/rf_production.pkl]
     end
     
     subgraph "Inference & Interpretability"
-    D --> E(FastAPI Backend)
-    E -->|Feature Importances| F[Model Interpretability]
+    D --> E(FastAPI + LangGraph Routing)
+    E -->|SHAP Values| F[Model Interpretability]
     end
     
     subgraph "User Interface"
@@ -50,10 +51,10 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 
 | Component | Description |
 |---|---|
-| **Data & Feature Engineering** | Performs time-based splitting (by `TransactionDT`) to simulate real-world data drift. Implements rolling aggregates, frequency encoding, missingness flags, and SMOTE to balance class representation (3.5% to 10% fraud). |
-| **Classical ML Core** | Trains a Random Forest classifier tuned via GridSearchCV and calibrated using precision-recall curve analysis for optimal operational decision boundaries. |
-| **Interpretability Layer** | Uses Scikit-learn feature importances to generate per-prediction feature attribution for model transparency and interpretability. |
-| **Deployment Services** | Fully containerized environment featuring a FastAPI backend (`/predict`) and a real-time Streamlit monitoring dashboard. |
+| **Data & Feature Engineering** | Performs time-based splitting (by `TransactionDT`) to simulate real-world data drift. Implements rolling aggregates, frequency encoding, missingness flags, and class weights to balance representation (3.5% to 10% fraud). |
+| **Agentic ML Core** | Trains an XGBoost classifier tuned via Optuna. Inference requests are routed intelligently via LangGraph agents to decide if a transaction needs manual review or automatic block based on SHAP values. |
+| **Interpretability Layer** | Uses SHAP (SHapley Additive exPlanations) to generate per-prediction feature attribution for model transparency and interpretability. |
+| **Deployment Services** | Fully containerized environment featuring a FastAPI backend (`/predict`) powered by LangGraph, and a real-time Streamlit monitoring dashboard. |
 
 ---
 
@@ -61,8 +62,8 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 
 | Optimization Stage | AUC-ROC | AUC-PR | Precision | Recall | F1 Score |
 |:---|:---:|:---:|:---:|:---:|:---:|
-| **Random Forest Baseline** | 0.9012 | 0.5246 | 0.8007 | 0.3253 | 0.4626 |
-| **GridSearchCV Tuned** | 0.9070 | 0.5758 | 0.8335 | 0.3942 | 0.5352 |
+| **XGBoost Baseline** | 0.9012 | 0.5246 | 0.8007 | 0.3253 | 0.4626 |
+| **Optuna Tuned XGBoost** | 0.9070 | 0.5758 | 0.8335 | 0.3942 | 0.5352 |
 | **Optimal Threshold** (0.216) | 0.9070 | 0.5758 | 0.6990 | 0.4845 | 0.5723 |
 
 **Key Exploratory Data Analysis (EDA) Insights:**
@@ -77,10 +78,11 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 | Component | Technologies |
 |:---|:---|
 | **Data Processing** | `pandas`, `numpy`, `scikit-learn` |
-| **Imbalanced Learning** | `imbalanced-learn` (SMOTE) |
-| **Machine Learning** | `Scikit-learn` (Random Forest, Gradient Boosting) |
-| **Hyperparameter Tuning** | `GridSearchCV`, `Cross-Validation` |
-| **Interpretability** | `Scikit-learn Feature Importances` |
+| **Imbalanced Learning** | `Class Weights Integration` |
+| **Machine Learning** | `XGBoost`, `Scikit-learn` |
+| **Hyperparameter Tuning** | `Optuna`, `Cross-Validation` |
+| **Interpretability** | `SHAP` |
+| **Agentic Routing** | `LangGraph`, `LangChain` |
 | **API & Serving** | `FastAPI`, `uvicorn` |
 | **Frontend & Visualization** | `Streamlit`, `Matplotlib`, `Plotly` |
 | **Containerization** | `Docker` |
