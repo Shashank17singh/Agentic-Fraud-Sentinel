@@ -75,11 +75,11 @@ fraud-detection-platform/
 │   ├── raw/                  # IEEE-CIS source CSVs
 │   └── processed/            # Engineered, split, balanced data
 ├── notebooks/
-│   ├── 01_eda.ipynb          # Exploratory Data Analysis
-│   ├── 02_preprocessing.ipynb# Feature engineering pipelines
-│   ├── 03_model.ipynb        # XGBoost & Optuna training
-│   ├── 04_shap.ipynb         # SHAP value extraction
-│   └── 05_agents.ipynb       # LangGraph agent testing
+│   ├── eda.ipynb             # Exploratory Data Analysis
+│   ├── preprocessing.ipynb   # Feature engineering pipelines
+│   ├── model.ipynb           # XGBoost & Optuna training
+│   ├── shap.ipynb            # SHAP value extraction
+│   └── agents.ipynb          # LangGraph agent testing
 ├── src/
 │   ├── data/                 # Data pipelines
 │   ├── models/               # Training & evaluation scripts
