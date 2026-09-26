@@ -2,7 +2,7 @@
 
 # Agentic-Fraud-Sentinel
 
-**A production-grade fraud detection system using XGBoost classifiers with LangGraph-based multi-agent routing, strict class balancing weights, and a real-time FastAPI backend.**
+**Developed an advanced financial fraud detection system utilizing an optimized XGBoost model tuned with Optuna. Engineered temporal features and balanced data using SMOTE to tackle class imbalance, and integrated SHAP values to provide game-theoretic interpretability for model predictions.**
 
 [![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![XGBoost](https://img.shields.io/badge/XGBoost-Machine%20Learning-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://xgboost.readthedocs.io/)
