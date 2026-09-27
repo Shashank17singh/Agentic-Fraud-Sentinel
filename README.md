@@ -139,9 +139,8 @@ Download the IEEE-CIS Fraud Detection dataset from [Kaggle](https://www.kaggle.c
 - `data/raw/train_identity.csv`
 
 ### 3. Deployment
-*(Update this section with your deployment instructions or Cloud Provider details once live).*
 - **API URL:** https://agentic-fraud-sentinel.onrender.com/docs
-- **Dashboard URL:** [Your Streamlit Cloud URL]
+- **Dashboard URL:** https://agentic-fraud-sentinel.streamlit.app/
 
 ---
 
