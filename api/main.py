@@ -1,13 +1,13 @@
 # pyrefly: ignore [missing-import]
 import os
 import sys
-from typing import Any, List, Optional
+from typing import Any
 
 import joblib
-import pandas as pd
+
 # pyrefly: ignore [missing-import]
 from fastapi import FastAPI, HTTPException
-from numpy.random import logistic
+
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel
 
@@ -21,10 +21,8 @@ else:
     DATA_DIR = os.path.join(BASE_DIR, "notebooks", "data")
 
 
-
-
-
 from src.agents.graph import build_fraud_graph
+
 app = FastAPI(
     title="Agentic-Fraud-Sentinel API",
     description="Multi agent fraud detection - XGBoost and LangGraph",
@@ -42,6 +40,7 @@ class TransactionRequest(BaseModel):
     """
     Input schema for a transaction prediction request.
     """
+
     transaction_id: str
     features: dict
 
@@ -50,6 +49,7 @@ class PredictionResponse(BaseModel):
     """
     Output schema for a transaction prediction response.
     """
+
     transaction_id: str
     fraud_probability: float
     risk_level: str
@@ -57,8 +57,8 @@ class PredictionResponse(BaseModel):
     requires_human: bool
     explanation: str
     policy_reasoning: str
-    shap_top_features: List[Any]
-    errors: List[Any]
+    shap_top_features: list[Any]
+    errors: list[Any]
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -67,7 +67,7 @@ class PredictionResponse(BaseModel):
 def health_check():
     """
     Health check endpoint to verify API availability.
-    
+
     Returns:
         dict: Basic health status and model version.
     """
@@ -90,7 +90,6 @@ def predict(request: TransactionRequest):
         PredictionResponse: Structured fraud decision and explanation.
     """
     try:
-
         feature_row = {col: request.features.get(col, 0) for col in FEATURE_COLS}
 
         initial_state = {
@@ -129,8 +128,7 @@ def predict(request: TransactionRequest):
         raise
 
     except Exception as e:
-
-        raise HTTPException(status_code=500, detail=f"Predcition failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Predcition failed: {e!s}")
 
 
 app.get("/metrics")
@@ -139,7 +137,7 @@ app.get("/metrics")
 def get_metrics():
     """
     Retrieve basic model metadata and performance metrics.
-    
+
     Returns:
         dict: Pre-configured model evaluation metrics.
     """

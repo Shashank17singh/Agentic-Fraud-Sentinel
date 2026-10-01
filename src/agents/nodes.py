@@ -2,7 +2,6 @@ import os
 from datetime import datetime
 
 import joblib
-import numpy as np
 import pandas as pd
 
 from src.agents.state import FraudDetectionState
@@ -80,7 +79,7 @@ def risk_scorer_node(state: FraudDetectionState) -> dict:
         }
 
     except Exception as e:
-        return {"processing_errors": [f"RiskScorer error: {str(e)}"]}
+        return {"processing_errors": [f"RiskScorer error: {e!s}"]}
 
 
 def explainer_node(state: FraudDetectionState) -> dict:
@@ -89,7 +88,6 @@ def explainer_node(state: FraudDetectionState) -> dict:
 
     """
     try:
-
         tx_data = _encode_features(state["transaction_data"])
         X = pd.DataFrame([tx_data], columns=FEATURE_COLS)
         X = X.reindex(columns=FEATURE_COLS, fill_value=0)
@@ -114,8 +112,7 @@ def explainer_node(state: FraudDetectionState) -> dict:
         )
 
         print(
-            f"[Explainer] tx={state['transaction_id']} "
-            f"top_feature={top[0]['feature']}"
+            f"[Explainer] tx={state['transaction_id']} top_feature={top[0]['feature']}"
         )
 
         return {
@@ -124,14 +121,14 @@ def explainer_node(state: FraudDetectionState) -> dict:
         }
 
     except Exception as e:
-        print(f"[Explainer] ERROR: {str(e)}")
+        print(f"[Explainer] ERROR: {e!s}")
         import traceback
 
         traceback.print_exc()
         return {
             "shap_explanation": None,
-            "explanation_text": f"Explanation unavailable: {str(e)}",
-            "processing_errors": [f"Explainer error: {str(e)}"],
+            "explanation_text": f"Explanation unavailable: {e!s}",
+            "processing_errors": [f"Explainer error: {e!s}"],
         }
 
 
@@ -194,7 +191,7 @@ def human_review_node(state: FraudDetectionState) -> dict:
     a conditional branch.
     """
 
-    print(f"[HumanReview] tx = {state['transaction_id']}" f"queued for analyst review")
+    print(f"[HumanReview] tx = {state['transaction_id']}queued for analyst review")
 
     return {
         "policy_reasoning": state["policy_reasoning"] + "\n[QUEUED FOR HUMAN REVIEW]"
@@ -207,7 +204,7 @@ def auto_approve_node(state: FraudDetectionState) -> dict:
     Logs the auto approval decision.
     """
 
-    print(f"[Auto Approve] tx = {state['transaction_id']}" f"auto-approved")
+    print(f"[Auto Approve] tx = {state['transaction_id']}auto-approved")
 
     return {"policy_reasoning": state["policy_reasoning"] + "\n[AUTO_APPROVED]"}
 
@@ -241,9 +238,6 @@ def report_node(state: FraudDetectionState) -> dict:
         "errors": state.get("processing_errors", []),
     }
 
-    print(
-        f"[REPORT] tx={state['transaction_id']}"
-        f"decision={state['decision']} complete"
-    )
+    print(f"[REPORT] tx={state['transaction_id']}decision={state['decision']} complete")
 
     return {"final_report": report}
