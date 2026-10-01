@@ -13,6 +13,23 @@ RESULTS_DIR = "data/model_results"
 
 
 def evaluate_model(model, X_test, Y_test, threshold=0.5, model_name="model"):
+    """
+    Evaluate a trained model against a test set.
+    
+    Computes various classification metrics including AUC-ROC, AUC-PR,
+    Precision, Recall, F1 score, and the Confusion Matrix based on the
+    provided decision threshold.
+    
+    Args:
+        model: The trained scikit-learn compatible model.
+        X_test (pd.DataFrame): The test features.
+        Y_test (pd.Series/array): The true test labels.
+        threshold (float): The probability threshold for classification (default 0.5).
+        model_name (str): Identifier for the model being evaluated.
+        
+    Returns:
+        dict: A dictionary containing the computed metrics.
+    """
 
     Y_prob = model.predict_proba(X_test)[:, 1]
 
@@ -65,6 +82,14 @@ def evaluate_model(model, X_test, Y_test, threshold=0.5, model_name="model"):
 
 
 def log_results(results: dict):
+    """
+    Append evaluation results to a JSON log file.
+    
+    Creates the file and directory if they do not exist.
+    
+    Args:
+        results (dict): The dictionary of evaluation results to log.
+    """
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -85,6 +110,14 @@ def log_results(results: dict):
 
 
 def compare_runs():
+    """
+    Read the model evaluation log and return it as a DataFrame for comparison.
+    
+    Also prints a formatted summary to the console.
+    
+    Returns:
+        pd.DataFrame or None: The logged results, or None if no log exists.
+    """
     log_path = os.path.join(RESULTS_DIR, "model_log.json")
 
     if not os.path.exists(log_path):

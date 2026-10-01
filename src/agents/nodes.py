@@ -44,9 +44,6 @@ def _encode_features(tx_data: dict) -> dict:
     return encoded
 
 
-# NODE 1: Risk Scorer
-
-
 def risk_scorer_node(state: FraudDetectionState) -> dict:
     """
     Loads transaction features, run Xgboost model, returns fraud probability and a risk tier.
@@ -84,9 +81,6 @@ def risk_scorer_node(state: FraudDetectionState) -> dict:
 
     except Exception as e:
         return {"processing_errors": [f"RiskScorer error: {str(e)}"]}
-
-
-# Node 2: Explainer
 
 
 def explainer_node(state: FraudDetectionState) -> dict:
@@ -141,9 +135,6 @@ def explainer_node(state: FraudDetectionState) -> dict:
         }
 
 
-# Node3: Policy
-
-
 def policy_node(state: FraudDetectionState) -> dict:
     """Applies business rules on top of the model score.
     This is deliberately rule based , not ML policy decisions
@@ -195,9 +186,6 @@ def policy_node(state: FraudDetectionState) -> dict:
     }
 
 
-# Node 4a : Human review
-
-
 def human_review_node(state: FraudDetectionState) -> dict:
     """
     In a real system this would pause the graph and wait for a human
@@ -213,9 +201,6 @@ def human_review_node(state: FraudDetectionState) -> dict:
     }
 
 
-# Node 4b: Auto apporve
-
-
 def auto_approve_node(state: FraudDetectionState) -> dict:
     """
     Low risk transactions skip human review entirely.
@@ -225,9 +210,6 @@ def auto_approve_node(state: FraudDetectionState) -> dict:
     print(f"[Auto Approve] tx = {state['transaction_id']}" f"auto-approved")
 
     return {"policy_reasoning": state["policy_reasoning"] + "\n[AUTO_APPROVED]"}
-
-
-# Node 5: Report
 
 
 def report_node(state: FraudDetectionState) -> dict:

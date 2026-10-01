@@ -26,18 +26,12 @@ else:
 
 from src.agents.graph import build_fraud_graph
 
-# App setup
-
+# Load fraud detection graph and initial feature columns on startup.
 app = FastAPI(
     title="Agentic-Fraud-Sentinel API",
     description="Multi agent fraud detection - XGBoost and LangGraph",
     version="1.0.0",
 )
-
-# ── Load graph once at startup ───────────────────────────────────
-# We build the graph when the server starts, not on every request
-# Building it on every request would reload model files from disk
-# each time — extremely slow under load
 
 print("Building fraud detection graph..")
 fraud_graph = build_fraud_graph()
@@ -48,18 +42,18 @@ bundle = joblib.load(os.path.join(DATA_DIR, "models", "xgboost_production.pkl"))
 FEATURE_COLS = bundle["model"].get_booster().feature_names
 
 
-# REQUEST MODEL
-
-
 class TransactionRequest(BaseModel):
+    """
+    Input schema for a transaction prediction request.
+    """
     transaction_id: str
     features: dict
 
 
-# Response Model
-
-
 class PredictionResponse(BaseModel):
+    """
+    Output schema for a transaction prediction response.
+    """
     transaction_id: str
     fraud_probability: float
     risk_level: str
@@ -67,21 +61,19 @@ class PredictionResponse(BaseModel):
     requires_human: bool
     explanation: str
     policy_reasoning: str
-    shap_top_features: List[Any]  # simplified — no nested Dict typing
+    shap_top_features: List[Any]
     errors: List[Any]
 
     model_config = {"arbitrary_types_allowed": True}
 
 
-# Endpoints
-
-
 @app.get("/health")
 def health_check():
     """
-    Simplest possible endpoint
-    Load balancers and monitoring tools ping this to check
-    whether the server is alive. Returns 200 if ok
+    Health check endpoint to verify API availability.
+    
+    Returns:
+        dict: Basic health status and model version.
     """
 
     return {"status": "ok", "model": "xgboost_tuned", "version": "1.0.0"}
@@ -90,18 +82,18 @@ def health_check():
 @app.post("/predict", response_model=PredictionResponse)
 def predict(request: TransactionRequest):
     """
-    Main endpoints - runs the full graph pipeline.
+    Main endpoint for transaction fraud prediction.
 
-    Flow :-
-    1. Receives transaction features as JSON
-    2. Build initial state for the graph
-    3. Run graph: RiskScorer-> explainer-> Policy -> [HumanReview|AutoApprove] -> Report
-    4. Return structured decision with explanation
+    Executes a multi-agent graph pipeline comprising:
+    RiskScorer -> Explainer -> Policy -> [HumanReview|AutoApprove] -> Report.
+
+    Args:
+        request (TransactionRequest): The incoming transaction details.
+
+    Returns:
+        PredictionResponse: Structured fraud decision and explanation.
     """
-
     try:
-        # Align incoming features to models expected column order
-        # Missing features get filled with 0.
 
         feature_row = {col: request.features.get(col, 0) for col in FEATURE_COLS}
 
@@ -118,9 +110,6 @@ def predict(request: TransactionRequest):
             "final_report": None,
             "processing_errors": [],
         }
-
-        # Run the graph - this is the single line that runs
-        # all 5 agents in sequence with the conditional routing
 
         result = fraud_graph.invoke(initial_state)
         report = result["final_report"]
@@ -153,8 +142,10 @@ app.get("/metrics")
 
 def get_metrics():
     """
-    Basic model metadata- feeds the streamlit dashboard.
-
+    Retrieve basic model metadata and performance metrics.
+    
+    Returns:
+        dict: Pre-configured model evaluation metrics.
     """
 
     return {
