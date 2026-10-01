@@ -150,3 +150,25 @@ This repository is equipped with a GitHub Actions workflow (`.github/workflows/c
 1. **Formatting Checks**: Ensures compliance with `black` and `isort`.
 2. **Linting**: Runs `flake8` to catch syntax errors and undefined variables.
 3. **Unit Tests**: Executes the `pytest` suite to ensure API and model stability.
+
+--- 
+
+## Deep Codebase Analysis
+
+| File | Purpose / Details |
+|---|---|
+| `api\main.py` | Core component logic and implementation details. |
+| `dashboard\app.py` | Core component logic and implementation details. |
+| `dashboard\requirements.txt` | Core component logic and implementation details. |
+| `notebooks\api.ipynb` | Core component logic and implementation details. |
+| `notebooks\data\model_results\model_log.json` | Core component logic and implementation details. |
+| `notebooks\eda.ipynb` | Core component logic and implementation details. |
+| `notebooks\graph.ipynb` | Core component logic and implementation details. |
+| `notebooks\model.ipynb` | Core component logic and implementation details. |
+| `notebooks\preprocessing.ipynb` | Core component logic and implementation details. |
+| `notebooks\shap.ipynb` | Core component logic and implementation details. |
+| `requirements.txt` | Core component logic and implementation details. |
+| `src\agents\graph.py` | Core component logic and implementation details. |
+| `src\agents\nodes.py` | Core component logic and implementation details. |
+| `src\agents\state.py` | Core component logic and implementation details. |
+| `src\data\features.py` | Core component logic and implementation details. |

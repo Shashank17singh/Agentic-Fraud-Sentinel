@@ -15,6 +15,19 @@ label_encoders = {}
 
 
 def get_dtype_dict(csv_path, usecols):
+    """
+    Determine appropriate dtypes for a CSV file by sampling.
+    
+    Helps reduce memory footprint during pd.read_csv by aggressively typing 
+    numeric columns to float32.
+    
+    Args:
+        csv_path (str): Path to the CSV file.
+        usecols (list): List of columns to keep.
+        
+    Returns:
+        dict: A mapping of column names to numpy data types.
+    """
     sample = pd.read_csv(csv_path, nrows=5000, usecols=usecols)
     dtype_dict = {}
     skip = {"TransactionID", "isFraud", "TransactionDT"}
@@ -32,6 +45,18 @@ def get_dtype_dict(csv_path, usecols):
 
 
 def time_based_split(df, split_quantile=0.8):
+    """
+    Perform a time-based train-test split.
+    
+    Ensures the model is evaluated on future data (out-of-time validation).
+    
+    Args:
+        df (pd.DataFrame): The input dataframe containing TransactionDT.
+        split_quantile (float): The quantile to split at (default 0.8).
+        
+    Returns:
+        tuple: (train_df, test_df)
+    """
     split_point = df["TransactionDT"].quantile(split_quantile)
     print(f"Split point: {split_point:,.0f} seconds")
     train = df[df["TransactionDT"] <= split_point].copy()
@@ -42,6 +67,19 @@ def time_based_split(df, split_quantile=0.8):
 
 
 def encode_categoricals(train, test):
+    """
+    Label encode categorical columns.
+    
+    Fits the encoders on the training set and transforms the test set.
+    Handles unseen categories in the test set gracefully by mapping them to '__unknown__'.
+    
+    Args:
+        train (pd.DataFrame): Training data.
+        test (pd.DataFrame): Testing data.
+        
+    Returns:
+        tuple: (encoded_train, encoded_test)
+    """
     global label_encoders
     protected = {"isFraud", "TransactionID", "TransactionDT"}
     cat_cols = [
@@ -65,6 +103,20 @@ def encode_categoricals(train, test):
 
 
 def apply_smote(X_train, Y_train, sampling_strategy=0.1, random_state=42):
+    """
+    Apply Synthetic Minority Over-sampling Technique (SMOTE).
+    
+    Oversamples the minority class (fraud) to combat class imbalance.
+    
+    Args:
+        X_train (pd.DataFrame): Training features.
+        Y_train (pd.Series/pd.DataFrame): Training labels.
+        sampling_strategy (float): The target ratio of minority to majority class.
+        random_state (int): Random seed for reproducibility.
+        
+    Returns:
+        tuple: (resampled_X, resampled_Y)
+    """
     if isinstance(Y_train, pd.DataFrame):
         Y_train = Y_train.iloc[:, 0]
     Y_train = Y_train.astype(int)
@@ -86,6 +138,11 @@ def apply_smote(X_train, Y_train, sampling_strategy=0.1, random_state=42):
 
 
 def save_processed(X_train, X_test, Y_train, Y_test):
+    """
+    Save the processed training and testing sets to disk as parquet files.
+    
+    Also saves the fitted label encoders.
+    """
     os.makedirs(PROCESSED_DIR, exist_ok=True)
     X_train.to_parquet(f"{PROCESSED_DIR}X_train.parquet", index=False)
     X_test.to_parquet(f"{PROCESSED_DIR}X_test.parquet", index=False)
@@ -96,9 +153,22 @@ def save_processed(X_train, X_test, Y_train, Y_test):
 
 
 def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
+    """
+    End-to-end data processing pipeline for fraud detection.
+    
+    Loads raw CSVs with memory optimizations, applies feature engineering,
+    splits data chronologically, encodes features, applies SMOTE for class imbalance,
+    and saves the final datasets to disk.
+    
+    Args:
+        raw_transaction_path (str): Path to the transactions CSV.
+        raw_identity_path (str): Path to the identities CSV.
+        
+    Returns:
+        tuple: (X_train, X_test, Y_train, Y_test)
+    """
     from src.data.features import add_frequency_encoding, engineer_features
 
-    # 1. Load with memory optimization
     print("Loading data...")
     trans_sample = pd.read_csv(raw_transaction_path, nrows=10000)
     ident_sample = pd.read_csv(raw_identity_path, nrows=10000)
@@ -136,11 +206,9 @@ def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
     gc.collect()
     print(f"Joined shape: {df.shape}")
 
-    # 2. Feature engineering
     print("\nEngineering features...")
     df = engineer_features(df)
 
-    # 3. Split
     print("\nSplitting...")
     train, test = time_based_split(df)
     del df
@@ -172,11 +240,9 @@ def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
     print(f"X_train: {len(X_train):,} rows | Y_train: {len(Y_train):,} rows")
     print(f"X_test:  {len(X_test):,} rows  | Y_test:  {len(Y_test):,} rows")
 
-    # 7. SMOTE on training only
     print("\nApplying SMOTE...")
     X_train, Y_train = apply_smote(X_train, Y_train)
 
-    # 8. Save
     print("\nSaving...")
     save_processed(X_train, X_test, Y_train, Y_test)
 

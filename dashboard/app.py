@@ -8,19 +8,13 @@ import streamlit as st
 API_URL = "https://agentic-fraud-sentinel.onrender.com"
 
 
-# Page config
-
 st.set_page_config(
     page_title="Agentic-Fraud-Sentinel", layout="wide"
 )
 
-# Header
-
 st.title("Agentic-Fraud-Sentinel Dashboard")
 st.markdown("Real-time monitoring of the multi-agent fraud detection system")
 st.divider()
-
-# Load decision log
 
 LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -32,10 +26,15 @@ LOG_PATH = os.path.join(
 
 
 @st.cache_data(ttl=30)
-# Cache data for 30 seconds — refreshes automatically
-
-
 def load_log():
+    """
+    Load the model evaluation logs from JSON.
+    
+    Data is cached for 30 seconds for performance.
+    
+    Returns:
+        pd.DataFrame: The logged model metrics.
+    """
     if not os.path.exists(LOG_PATH):
         return pd.DataFrame()
     with open(LOG_PATH, "r") as f:
@@ -44,8 +43,6 @@ def load_log():
 
 
 df = load_log()
-
-# Top metrics row
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -60,9 +57,6 @@ with col3:
 
 with col4:
     st.metric(label="Threshold", value="0.2161", delta="optimized from 0.5")
-
-
-# Model runs table
 
 
 st.divider()
@@ -203,8 +197,6 @@ if st.button("Run fraud check", type="primary"):
         st.error("Cannot connect to API. Make sure uvicorn is running " "on port 8000.")
 
 
-# Metric deep dive
-
 st.divider()
 st.subheader("metric deep dive")
 
@@ -258,7 +250,5 @@ if not df.empty:
       in every 100 legitimate transactions are wrongly blocked
     """)
 
-
-# Footer
 
 st.divider()

@@ -9,6 +9,16 @@ from sklearn.metrics import average_precision_score
 MODEL_DIR = "data/models/"
 
 def train_random_forest_baseline(X_train, Y_train):
+    """
+    Train a baseline Random Forest classifier for fraud detection.
+    
+    Args:
+        X_train (pd.DataFrame): The training features.
+        Y_train (pd.Series/pd.DataFrame): The training labels.
+        
+    Returns:
+        RandomForestClassifier: The trained model.
+    """
     print("Training Random Forest baseline:")
 
     model = RandomForestClassifier(
@@ -25,6 +35,16 @@ def train_random_forest_baseline(X_train, Y_train):
     return model
 
 def save_model(model, name):
+    """
+    Save a trained scikit-learn model to disk using joblib.
+    
+    Args:
+        model: The trained scikit-learn model.
+        name (str): The filename (without extension).
+        
+    Returns:
+        str: The path where the model was saved.
+    """
     os.makedirs(MODEL_DIR, exist_ok=True)
     path = os.path.join(MODEL_DIR, f"{name}.pkl")
     joblib.dump(model, path)
@@ -32,10 +52,32 @@ def save_model(model, name):
     return path
 
 def load_model(name):
+    """
+    Load a saved scikit-learn model from disk.
+    
+    Args:
+        name (str): The filename (without extension).
+        
+    Returns:
+        The loaded scikit-learn model.
+    """
     path = os.path.join(MODEL_DIR, f"{name}.pkl")
     return joblib.load(path)
 
 def tune_random_forest(X_train, Y_train):
+    """
+    Perform hyperparameter tuning for Random Forest using GridSearchCV.
+    
+    Uses StratifiedKFold cross-validation and optimizes for average_precision (AUC-PR).
+    Downsamples the training data if it exceeds 50,000 rows to speed up tuning.
+    
+    Args:
+        X_train (pd.DataFrame): The training features.
+        Y_train (pd.Series/pd.DataFrame): The training labels.
+        
+    Returns:
+        tuple: (tuned_model, grid_search_object)
+    """
     print("Tuning Random Forest with GridSearchCV...")
     
     # We use a small grid because of the large dataset size

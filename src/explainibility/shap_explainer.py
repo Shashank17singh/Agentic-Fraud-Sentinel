@@ -109,10 +109,26 @@ def explain_single_prediction(explainer, X_row: pd.DataFrame, top_n=10) -> dict:
 
 
 def save_explainer(explainer, path="data/models/shap_explainer.pkl"):
+    """
+    Save the SHAP explainer to disk.
+    
+    Args:
+        explainer: The fitted SHAP explainer object.
+        path (str): File path to save the explainer to.
+    """
     os.makedirs(os.path.dirname(path), exist_ok=True)
     joblib.dump(explainer, path)
     print(f"Explainer saved to {path}")
 
 
 def load_explainer(path="data/models/shap_explainer.pkl"):
+    """
+    Load a previously saved SHAP explainer from disk.
+    
+    Args:
+        path (str): File path to load the explainer from.
+        
+    Returns:
+        The loaded SHAP explainer object.
+    """
     return joblib.load(path)

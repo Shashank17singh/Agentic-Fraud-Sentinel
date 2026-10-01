@@ -8,6 +8,15 @@ from src.agents.state import FraudDetectionState
 
 
 def route_after_policy(state: FraudDetectionState) -> str:
+    """
+    Route the graph to human review or auto-approve based on policy decision.
+
+    Args:
+        state (FraudDetectionState): The current state of the transaction.
+
+    Returns:
+        str: The next node identifier.
+    """
     if state["requires_human"]:
         return "go_human_review"
     else:
@@ -15,9 +24,14 @@ def route_after_policy(state: FraudDetectionState) -> str:
 
 
 def build_fraud_graph():
+    """
+    Construct and compile the LangGraph for fraud detection.
+
+    Returns:
+        Graph: The compiled state graph.
+    """
     graph = StateGraph(FraudDetectionState)
 
-    # Add nodes
     graph.add_node("risk_scorer", risk_scorer_node)
     graph.add_node("explainer", explainer_node)
     graph.add_node("policy", policy_node)
@@ -25,16 +39,11 @@ def build_fraud_graph():
     graph.add_node("auto_approve", auto_approve_node)
     graph.add_node("report", report_node)
 
-    # Entry point
     graph.set_entry_point("risk_scorer")
 
-    # Linear edges
     graph.add_edge("risk_scorer", "explainer")
     graph.add_edge("explainer", "policy")
 
-    # Conditional edge — routing function returns exactly
-    # "go_human_review" or "go_auto_approve"
-    # mapping keys must match those exact strings
     graph.add_conditional_edges(
         "policy",
         route_after_policy,
@@ -44,11 +53,9 @@ def build_fraud_graph():
         },
     )
 
-    # Both branches converge at report
     graph.add_edge("human_review", "report")
     graph.add_edge("auto_approve", "report")
 
-    # Terminal
     graph.add_edge("report", END)
 
     app = graph.compile()

@@ -4,9 +4,17 @@ from pandas import DataFrame
 
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Master function to apply all engineering steps
-    Call this on full joined dataframe before splitting"""
-
+    """
+    Master function to apply all feature engineering steps.
+    
+    Call this on the full joined dataframe before splitting into train/test sets.
+    
+    Args:
+        df (pd.DataFrame): The raw input dataframe.
+        
+    Returns:
+        pd.DataFrame: The engineered dataframe.
+    """
     df = df.copy()
     df = add_time_features(df)
     df = add_missingness_flags(df)
@@ -18,10 +26,18 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
-    """TransactionDT is seconds since an arbitrary reference point
-    We extract cyclic signals from it- fraud has strong time patterns"""
-
-    df["tx_hour"] = (df["TransactionDT"] // 3600) % 24
+    """
+    Extract cyclic time signals from TransactionDT.
+    
+    TransactionDT is seconds since an arbitrary reference point.
+    Extracting hour and day patterns helps identify fraud time trends.
+    
+    Args:
+        df (pd.DataFrame): Dataframe containing 'TransactionDT'.
+        
+    Returns:
+        pd.DataFrame: Dataframe with cyclic time features added.
+    """
     df["tx_day"] = (df["TransactionDT"] // 86400) % 7
 
     df["tx_hour_sin"] = np.sin(2 * np.pi * df["tx_hour"] / 24)
@@ -29,8 +45,6 @@ def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
-## Missingness Flags
 
 COLS_TO_FLAG = [
     "id_01",
@@ -50,17 +64,22 @@ COLS_TO_FLAG = [
 
 
 def add_missingness_flags(df: pd.DataFrame) -> pd.DataFrame:
-    """For key columns, add a binary flag Before imputing.
-    'No device info attached is also a fraud signal'"""
-
-    for col in COLS_TO_FLAG:
+    """
+    Add binary flags for missing values in key columns before imputing.
+    
+    Missing information (e.g., no device info attached) is often a strong fraud signal.
+    
+    Args:
+        df (pd.DataFrame): The input dataframe.
+        
+    Returns:
+        pd.DataFrame: Dataframe with missingness flags.
+    """
         if col in df.columns:
             df[f"{col}_was_missing"] = df[col].isnull().astype(int)
 
     return df
 
-
-## Frequency encoding
 
 FREQ_COLS = [
     "card1",
@@ -78,14 +97,19 @@ freq_maps: dict = {}
 
 
 def add_frequency_encoding(df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
-    """Replace each categorical value with how often it appears.
-    Rare values(unusual device, unknown email domain) get low scores
-
-    fti= true -> learn frequencies from this df (use on train)
-    fit = false -> apply stored frequencies ( use on test)
     """
-
-    global freq_maps
+    Replace each categorical value with its occurrence frequency.
+    
+    Rare values (e.g., unusual device, unknown email domain) will get low scores.
+    
+    Args:
+        df (pd.DataFrame): The input dataframe.
+        fit (bool): If True, learns frequencies from the dataframe (use on train).
+                    If False, applies stored frequencies (use on test).
+                    
+    Returns:
+        pd.DataFrame: Dataframe with frequency-encoded columns.
+    """
     for col in FREQ_COLS:
         if col not in df.columns:
             continue
@@ -95,15 +119,19 @@ def add_frequency_encoding(df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
     return df
 
 
-## Behavioral aggregates
-
-
 def add_behavioral_aggregates(df: pd.DataFrame) -> DataFrame:
-    """How does THIS transaction compare to this card's recent history?
-    This is where real fraud signal lives — not the transaction in isolation.
-
-    We sort by time first so rolling windows only look backward."""
-
+    """
+    Compute behavioral aggregate features for each card's recent history.
+    
+    Compares the current transaction to the card's history using rolling windows.
+    Data is sorted by time first to ensure windows only look backward.
+    
+    Args:
+        df (pd.DataFrame): Dataframe containing transaction amounts and times.
+        
+    Returns:
+        pd.DataFrame: Dataframe with behavioral aggregates added.
+    """
     df = df.sort_values("TransactionDT").reset_index(drop=True)
 
     for window_secs, label in [(3600, "1h"), (86400, "24h")]:
@@ -121,8 +149,6 @@ def add_behavioral_aggregates(df: pd.DataFrame) -> DataFrame:
     return df
 
 
-## Imputation
-
 from sklearn.impute import SimpleImputer
 
 num_imputer = SimpleImputer(strategy="median")
@@ -131,12 +157,16 @@ cat_imputer = SimpleImputer(strategy="constant", fill_value="missing")
 
 def impute_missing(df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
     """
-    Fill remaining NaNa
-    fit=True  → fit imputers on this data (train only)
-    fit=False → transform using already-fitted imputers (test)
+    Impute missing values for numerical and categorical columns.
+    
+    Args:
+        df (pd.DataFrame): The input dataframe.
+        fit (bool): If True, fits imputers on this data (train only).
+                    If False, transforms using already-fitted imputers (test).
+                    
+    Returns:
+        pd.DataFrame: The imputed dataframe.
     """
-
-    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     cat_cols = df.select_dtypes(include=["object"]).columns.tolist()
 
     if fit:
