@@ -8,9 +8,7 @@ import streamlit as st
 API_URL = "https://agentic-fraud-sentinel.onrender.com"
 
 
-st.set_page_config(
-    page_title="Agentic-Fraud-Sentinel", layout="wide"
-)
+st.set_page_config(page_title="Agentic-Fraud-Sentinel", layout="wide")
 
 CUSTOM_CSS = """
 <style>
@@ -116,9 +114,9 @@ LOG_PATH = os.path.join(
 def load_log():
     """
     Load the model evaluation logs from JSON.
-    
+
     Data is cached for 30 seconds for performance.
-    
+
     Returns:
         pd.DataFrame: The logged model metrics.
     """
@@ -163,7 +161,7 @@ else:
         "timestamp": "Timestamp",
     }
 
-    display_df = df[[c for c in display_cols.keys() if c in df.columns]].rename(
+    display_df = df[[c for c in display_cols if c in df.columns]].rename(
         columns=display_cols
     )
 
@@ -202,8 +200,8 @@ if not df.empty:
         height=400,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    
-    colors = ['#00FF41', '#00BFFF', '#FFD700', '#FF3333', '#FF00FF']
+
+    colors = ["#00FF41", "#00BFFF", "#FFD700", "#FF3333", "#FF00FF"]
     for i, trace in enumerate(fig.data):
         trace.marker.color = colors[i % len(colors)]
 
@@ -261,7 +259,7 @@ if st.button("Run fraud check", type="primary"):
             )
 
             st.markdown(
-                f"### {decision_color} Decision: " f"`{result['decision'].upper()}`"
+                f"### {decision_color} Decision: `{result['decision'].upper()}`"
             )
 
             col1, col2, col3 = st.columns(3)
@@ -287,7 +285,7 @@ if st.button("Run fraud check", type="primary"):
             )
 
     except requests.exceptions.ConnectionError:
-        st.error("Cannot connect to API. Make sure uvicorn is running " "on port 8000.")
+        st.error("Cannot connect to API. Make sure uvicorn is running on port 8000.")
 
 
 st.divider()
@@ -320,25 +318,25 @@ if not df.empty:
     with col2:
         st.markdown("**What these numbers mean**")
         st.markdown(f"""
-        - **True Negatives** `{int(row.get('true_negatives', 0)):,}` — 
+        - **True Negatives** `{int(row.get("true_negatives", 0)):,}` — 
           legitimate transactions correctly approved
-        - **False Positives** `{int(row.get('false_positives', 0)):,}` — 
+        - **False Positives** `{int(row.get("false_positives", 0)):,}` — 
           legitimate transactions wrongly flagged
-        - **False Negatives** `{int(row.get('false_negatives', 0)):,}` — 
+        - **False Negatives** `{int(row.get("false_negatives", 0)):,}` — 
           fraud cases missed
-        - **True Positives** `{int(row.get('true_positives', 0)):,}` — 
+        - **True Positives** `{int(row.get("true_positives", 0)):,}` — 
           fraud cases correctly caught
         """)
 
     st.markdown("**Precision vs Recall Tradeoff**")
     st.markdown(f"""
-    At threshold `{row.get('threshold', 0.5)}`:
+    At threshold `{row.get("threshold", 0.5)}`:
     - For every 100 transactions flagged as fraud, 
-      **{row.get('precision', 0)*100:.1f}** are actually fraud
+      **{row.get("precision", 0) * 100:.1f}** are actually fraud
     - Of all actual fraud in the dataset, 
-      **{row.get('recall', 0)*100:.1f}%** were caught
-    - False positive rate of **{row.get('false_positive_rate', 0)*100:.2f}%** 
-      means only **{row.get('false_positive_rate', 0)*100:.2f}** 
+      **{row.get("recall", 0) * 100:.1f}%** were caught
+    - False positive rate of **{row.get("false_positive_rate", 0) * 100:.2f}%** 
+      means only **{row.get("false_positive_rate", 0) * 100:.2f}** 
       in every 100 legitimate transactions are wrongly blocked
     """)
 

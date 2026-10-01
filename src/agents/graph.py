@@ -1,9 +1,14 @@
 # pyrefly: ignore [missing-import]
 from langgraph.graph import END, StateGraph
 
-from src.agents.nodes import (auto_approve_node, explainer_node,
-                              human_review_node, policy_node, report_node,
-                              risk_scorer_node)
+from src.agents.nodes import (
+    auto_approve_node,
+    explainer_node,
+    human_review_node,
+    policy_node,
+    report_node,
+    risk_scorer_node,
+)
 from src.agents.state import FraudDetectionState
 
 
