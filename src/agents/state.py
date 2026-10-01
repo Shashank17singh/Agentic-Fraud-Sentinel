@@ -1,4 +1,4 @@
-from typing import List, Optional, TypedDict
+from typing import TypedDict
 
 
 class FraudDetectionState(TypedDict):
@@ -10,17 +10,17 @@ class FraudDetectionState(TypedDict):
     transaction_id: str
     transaction_data: dict
 
-    fraud_probability: Optional[float]
-    risk_level: Optional[str]
+    fraud_probability: float | None
+    risk_level: str | None
 
-    shap_probability: Optional[dict]
-    explanation_text: Optional[str]
+    shap_probability: dict | None
+    explanation_text: str | None
 
-    decision: Optional[str]
-    policy_reasoning: Optional[str]
+    decision: str | None
+    policy_reasoning: str | None
 
-    requires_human: Optional[bool]
+    requires_human: bool | None
 
-    final_report: Optional[dict]
+    final_report: dict | None
 
-    processing_errors: Optional[List[str]]
+    processing_errors: list[str] | None
