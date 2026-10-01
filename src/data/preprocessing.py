@@ -213,19 +213,13 @@ def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
     train, test = time_based_split(df)
     del df
     gc.collect()
-
-    # 4. Frequency encoding � fit on train only
     print("\nFrequency encoding...")
     from src.data.features import add_frequency_encoding
 
     train = add_frequency_encoding(train, fit=True)
     test = add_frequency_encoding(test, fit=False)
-
-    # 5. Encode categoricals � fit on train only
     print("\nEncoding categoricals...")
     train, test = encode_categoricals(train, test)
-
-    # 6. Separate X and y � inline, no function call
     print("\nSeparating features and target...")
     drop = [c for c in DROP_COLS if c in train.columns]
 

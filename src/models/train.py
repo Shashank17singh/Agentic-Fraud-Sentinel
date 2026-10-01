@@ -79,8 +79,6 @@ def tune_random_forest(X_train, Y_train):
         tuple: (tuned_model, grid_search_object)
     """
     print("Tuning Random Forest with GridSearchCV...")
-    
-    # We use a small grid because of the large dataset size
     param_grid = {
         'n_estimators': [50, 100],
         'max_depth': [5, 10],
@@ -103,11 +101,8 @@ def tune_random_forest(X_train, Y_train):
         n_jobs=-1,
         verbose=2
     )
-    
-    # To save time on massive datasets, we might tune on a subsample
     if len(X_train) > 50000:
         print(f"Downsampling for GridSearchCV from {len(X_train)} to 50000 rows to save time...")
-        # Stratified sampling for grid search
         from sklearn.model_selection import train_test_split
         X_tune, _, Y_tune, _ = train_test_split(
             X_train, Y_train, train_size=50000, stratify=Y_train, random_state=42
