@@ -25,8 +25,6 @@ else:
 
 
 from src.agents.graph import build_fraud_graph
-
-# Load fraud detection graph and initial feature columns on startup.
 app = FastAPI(
     title="Agentic-Fraud-Sentinel API",
     description="Multi agent fraud detection - XGBoost and LangGraph",
@@ -36,8 +34,6 @@ app = FastAPI(
 print("Building fraud detection graph..")
 fraud_graph = build_fraud_graph()
 print("Graph ready...")
-
-# Load feature columns so we know what the model expects
 bundle = joblib.load(os.path.join(DATA_DIR, "models", "xgboost_production.pkl"))
 FEATURE_COLS = bundle["model"].get_booster().feature_names
 

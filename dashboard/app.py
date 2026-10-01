@@ -12,6 +12,93 @@ st.set_page_config(
     page_title="Agentic-Fraud-Sentinel", layout="wide"
 )
 
+CUSTOM_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+
+html, body, [class*="css"]  {
+    font-family: 'Fira Sans', sans-serif !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Fira Code', monospace !important;
+    color: #00FF41 !important;
+    text-shadow: 0 0 5px rgba(0, 255, 65, 0.4);
+    text-transform: uppercase;
+}
+
+.stApp {
+    background-color: #000000;
+    color: #E0E0E0;
+}
+
+[data-testid="stHeader"] {
+    background-color: rgba(0,0,0,0) !important;
+}
+
+/* Metric styling */
+[data-testid="stMetricValue"] {
+    font-family: 'Fira Code', monospace !important;
+    color: #00FF41 !important;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
+}
+
+[data-testid="stMetricLabel"] {
+    font-family: 'Fira Code', monospace !important;
+    color: #94A3B8 !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+[data-testid="stMetricDelta"] {
+    font-family: 'Fira Code', monospace !important;
+}
+
+/* Buttons */
+.stButton > button {
+    background-color: #00FF41;
+    color: #0F172A;
+    font-family: 'Fira Code', monospace;
+    font-weight: 600;
+    border: none;
+    border-radius: 2px;
+    text-transform: uppercase;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+}
+
+.stButton > button:hover {
+    background-color: #1aff58;
+    color: #0F172A;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.6);
+    transform: translateY(-1px);
+}
+
+/* Inputs */
+.stTextInput > div > div > input, .stNumberInput > div > div > input, .stSelectbox > div > div > div {
+    background-color: #0C130E;
+    color: #00FF41;
+    border: 1px solid #1F1F1F;
+    font-family: 'Fira Code', monospace;
+    border-radius: 2px;
+}
+.stTextInput > div > div > input:focus, .stNumberInput > div > div > input:focus {
+    border-color: #00FF41;
+    box-shadow: 0 0 5px rgba(0,255,65,0.3);
+}
+
+hr {
+    border-color: #1F1F1F !important;
+}
+
+.stDataFrame, .stTable {
+    font-family: 'Fira Code', monospace !important;
+}
+</style>
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
 st.title("Agentic-Fraud-Sentinel Dashboard")
 st.markdown("Real-time monitoring of the multi-agent fraud detection system")
 st.divider()
@@ -65,7 +152,6 @@ st.subheader("Model Version History")
 if df.empty:
     st.warning("No model runs logged yet.")
 else:
-    # Select and rename columns for display
     display_cols = {
         "model_name": "Model",
         "auc_roc": "AUC-ROC",
@@ -81,7 +167,6 @@ else:
         columns=display_cols
     )
 
-    # Highlight best AUC-ROC row
     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 st.divider()
@@ -106,12 +191,21 @@ if not df.empty:
         )
 
     fig.update_layout(
+        template="plotly_dark",
+        plot_bgcolor="#0C130E",
+        paper_bgcolor="#000000",
+        font=dict(family="Fira Code", color="#E0E0E0"),
         barmode="group",
-        title="Metrics across model versions",
-        yaxis=dict(range=[0, 1]),
+        title=dict(text="Metrics across model versions", font=dict(color="#00FF41")),
+        yaxis=dict(range=[0, 1], gridcolor="#1F1F1F"),
+        xaxis=dict(gridcolor="#1F1F1F"),
         height=400,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
+    
+    colors = ['#00FF41', '#00BFFF', '#FFD700', '#FF3333', '#FF00FF']
+    for i, trace in enumerate(fig.data):
+        trace.marker.color = colors[i % len(colors)]
 
     st.plotly_chart(fig, use_container_width=True)
 
@@ -162,7 +256,6 @@ if st.button("Run fraud check", type="primary"):
         if response.status_code == 200:
             result = response.json()
 
-            # Decision color coding
             decision_color = {"approve": "✅", "flag": "⚠️", "deny": "🚨"}.get(
                 result["decision"], "❓"
             )
@@ -237,7 +330,6 @@ if not df.empty:
           fraud cases correctly caught
         """)
 
-    # Precision recall tradeoff explanation
     st.markdown("**Precision vs Recall Tradeoff**")
     st.markdown(f"""
     At threshold `{row.get('threshold', 0.5)}`:
