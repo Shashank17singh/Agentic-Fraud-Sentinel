@@ -1,229 +1,273 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Architecture - Agentic Fraud Sentinel</title>
-              <meta name="color-scheme" content="dark">
-  <meta name="darkreader-lock">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Geist+Mono&family=Geist:wght@400;600&family=Instrument+Serif:ital@0;1&display=swap');
-    
-    :root {
-      color-scheme: dark;
-      --bg-body: #050505;
-      --bg-container: #0a0a0a;
-      --node-fill: #171717;
-      --node-stroke: #404040;
-      --node-text: #f5f5f5;
-      --node-sub: #a3a3a3;
-      --edge-stroke: #525252;
-      --edge-text: #a3a3a3;
-      --hover-node-stroke: #a3a3a3;
-      --hover-node-fill: #262626;
-      --hover-edge: #d4d4d4;
-    }
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Architecture - Agentic Fraud Sentinel</title>
+    <meta name="color-scheme" content="dark" />
+    <meta name="darkreader-lock" />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Geist+Mono&family=Geist:wght@400;600&family=Instrument+Serif:ital@0;1&display=swap");
 
-    body { 
-      margin: 0; 
-      padding: 2rem; 
-      font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
-      background-color: var(--bg-body); 
-      color: var(--node-text);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .diagram-container { 
-      width: 100%; 
-      max-width: 1200px;
-      overflow-x: auto; 
-      background-color: var(--bg-container); 
-      border: 1px solid #262626; 
-      border-radius: 12px; 
-      padding: 3rem; 
-      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
-    }
-    
-    svg { 
-      width: 100%; 
-      min-width: 960px; 
-      display: block; 
-    }
+      :root {
+        color-scheme: dark;
+        --bg-body: #050505;
+        --bg-container: #0a0a0a;
+        --node-fill: #171717;
+        --node-stroke: #404040;
+        --node-text: #f5f5f5;
+        --node-sub: #a3a3a3;
+        --edge-stroke: #525252;
+        --edge-text: #a3a3a3;
+        --hover-node-stroke: #a3a3a3;
+        --hover-node-fill: #262626;
+        --hover-edge: #d4d4d4;
+      }
 
-    .node rect { 
-      fill: var(--node-fill); 
-      stroke: var(--node-stroke); 
-      stroke-width: 1.5; 
-      rx: 6; 
-      transition: all 0.2s ease;
-    }
-    .node:hover rect {
-      stroke: var(--hover-node-stroke);
-      fill: var(--hover-node-fill);
-    }
-    
-    .node text { 
-      fill: var(--node-text); 
-      font-size: 10px; 
-      font-weight: 600; 
-      transition: all 0.2s ease;
-      letter-spacing: 0.02em;
-    }
-    .node .sub { 
-      font-family: 'Geist Mono', 'Consolas', 'Courier New', monospace; 
-      font-size: 7.5px; 
-      font-weight: normal; 
-      fill: var(--node-sub); 
-    }
-    .node:hover text {
-      fill: #ffffff;
-    }
-    .node:hover .sub {
-      fill: #d4d4d4;
-    }
-    
-    .edge path { 
-      fill: none; 
-      stroke: var(--edge-stroke); 
-      stroke-width: 1.5; 
-      transition: all 0.2s ease;
-    }
-    .edge:hover path {
-      stroke: var(--hover-edge);
-      stroke-width: 2;
-    }
-    
-    .edge text { 
-      font-family: 'Geist Mono', 'Consolas', 'Courier New', monospace; 
-      font-size: 8px; 
-      fill: var(--edge-text); 
-      paint-order: stroke fill;
-      stroke: var(--bg-container);
-      stroke-width: 8px;
-      stroke-linejoin: round;
-      stroke-linecap: round;
-    }
-    
-    .title { 
-      font-family: 'Instrument Serif', Georgia, serif; 
-      font-size: 26px; 
-      fill: var(--node-text); 
-    }
-    .subtitle { 
-      font-family: 'Geist Mono', 'Consolas', 'Courier New', monospace; 
-      font-size: 9px; 
-      fill: #737373; 
-    }
-    
-    .zone { 
-      fill: rgba(255,255,255,0.02); 
-      stroke: rgba(255,255,255,0.1); 
-      stroke-width: 1; 
-      rx: 8; 
-    }
-    .zone-label { 
-      font-family: 'Geist Mono', 'Consolas', 'Courier New', monospace; 
-      font-size: 7px; 
-      fill: rgba(255,255,255,0.4); 
-      letter-spacing: 0.14em; 
-    }
+      body {
+        margin: 0;
+        padding: 2rem;
+        font-family:
+          "Geist",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Arial,
+          sans-serif;
+        background-color: var(--bg-body);
+        color: var(--node-text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
-    @keyframes flow {
-      to { stroke-dashoffset: -20; }
-    }
-    .edge path[stroke-dasharray] {
-      animation: flow 1.5s linear infinite;
-      stroke: var(--node-sub);
-    }
-  </style>
-</head>
-<body>
-  <div class="diagram-container">
-    <svg viewBox="0 0 960 600" role="img" aria-labelledby="title desc">
-      <title id="title">Agentic Fraud Sentinel Architecture</title>
-      <desc id="desc">Data & Training Pipeline, Inference, and UI for Agentic Fraud Sentinel</desc>
-      
-                                    <defs>
-        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#525252" style="fill: context-stroke;" />
-        </marker>
-      </defs>
+      .diagram-container {
+        width: 100%;
+        max-width: 1200px;
+        overflow-x: auto;
+        background-color: var(--bg-container);
+        border: 1px solid #262626;
+        border-radius: 12px;
+        padding: 3rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+      }
 
-      <text x="40" y="60" class="title">Agentic Fraud Sentinel</text>
-      <text x="40" y="80" class="subtitle">XGBoost + LangGraph + FastAPI Pipeline</text>
+      svg {
+        width: 100%;
+        min-width: 960px;
+        display: block;
+      }
 
-      <!-- Zones -->
-      <rect x="40" y="120" width="300" height="400" class="zone" />
-      <text x="50" y="135" class="zone-label">DATA & TRAINING PIPELINE</text>
+      .node rect {
+        fill: var(--node-fill);
+        stroke: var(--node-stroke);
+        stroke-width: 1.5;
+        rx: 6;
+        transition: all 0.2s ease;
+      }
+      .node:hover rect {
+        stroke: var(--hover-node-stroke);
+        fill: var(--hover-node-fill);
+      }
 
-      <rect x="360" y="120" width="300" height="400" class="zone" />
-      <text x="370" y="135" class="zone-label">INFERENCE & INTERPRETABILITY</text>
+      .node text {
+        fill: var(--node-text);
+        font-size: 10px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        letter-spacing: 0.02em;
+      }
+      .node .sub {
+        font-family: "Geist Mono", "Consolas", "Courier New", monospace;
+        font-size: 7.5px;
+        font-weight: normal;
+        fill: var(--node-sub);
+      }
+      .node:hover text {
+        fill: #ffffff;
+      }
+      .node:hover .sub {
+        fill: #d4d4d4;
+      }
 
-      <rect x="680" y="120" width="240" height="400" class="zone" />
-      <text x="690" y="135" class="zone-label">USER INTERFACE</text>
+      .edge path {
+        fill: none;
+        stroke: var(--edge-stroke);
+        stroke-width: 1.5;
+        transition: all 0.2s ease;
+      }
+      .edge:hover path {
+        stroke: var(--hover-edge);
+        stroke-width: 2;
+      }
 
-      <!-- Nodes -->
-      <g class="node" transform="translate(100, 180)">
-        <rect x="0" y="0" width="160" height="60" />
-        <text x="80" y="25" text-anchor="middle" >IEEE-CIS Dataset</text>
-        <text x="80" y="40" class="sub" text-anchor="middle" >Raw Data</text>
-      </g>
-      <g class="node" transform="translate(100, 280)">
-        <rect x="0" y="0" width="160" height="60" />
-        <text x="80" y="25" text-anchor="middle" >Temporal Splits</text>
-        <text x="80" y="40" class="sub" text-anchor="middle" >Feature Engineering</text>
-      </g>
-      <g class="node" transform="translate(100, 380)">
-        <rect x="0" y="0" width="160" height="60" />
-        <text x="80" y="25" text-anchor="middle" >XGBoost Classifier</text>
-        <text x="80" y="40" class="sub" text-anchor="middle" >Class Weights Balancing</text>
-      </g>
+      .edge text {
+        font-family: "Geist Mono", "Consolas", "Courier New", monospace;
+        font-size: 8px;
+        fill: var(--edge-text);
+        paint-order: stroke fill;
+        stroke: var(--bg-container);
+        stroke-width: 8px;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+      }
 
-      <g class="node" transform="translate(420, 220)">
-        <rect x="0" y="0" width="180" height="60" />
-        <text x="90" y="25" text-anchor="middle" >rf_production.pkl</text>
-        <text x="90" y="40" class="sub" text-anchor="middle" >Tuned Model</text>
-      </g>
-      <g class="node" transform="translate(420, 320)">
-        <rect x="0" y="0" width="180" height="60" />
-        <text x="90" y="25" text-anchor="middle" >FastAPI + LangGraph</text>
-        <text x="90" y="40" class="sub" text-anchor="middle" >Routing Agent</text>
-      </g>
-      <g class="node" transform="translate(420, 420)">
-        <rect x="0" y="0" width="180" height="60" />
-        <text x="90" y="25" text-anchor="middle" >Interpretability</text>
-        <text x="90" y="40" class="sub" text-anchor="middle" >SHAP Values</text>
-      </g>
+      .title {
+        font-family: "Instrument Serif", Georgia, serif;
+        font-size: 26px;
+        fill: var(--node-text);
+      }
+      .subtitle {
+        font-family: "Geist Mono", "Consolas", "Courier New", monospace;
+        font-size: 9px;
+        fill: #737373;
+      }
 
-      <g class="node" transform="translate(720, 320)">
-        <rect x="0" y="0" width="160" height="60" />
-        <text x="80" y="25" text-anchor="middle" >Streamlit Dashboard</text>
-        <text x="80" y="40" class="sub" text-anchor="middle" >Real-Time UI</text>
-      </g>
+      .zone {
+        fill: rgba(255, 255, 255, 0.02);
+        stroke: rgba(255, 255, 255, 0.1);
+        stroke-width: 1;
+        rx: 8;
+      }
+      .zone-label {
+        font-family: "Geist Mono", "Consolas", "Courier New", monospace;
+        font-size: 7px;
+        fill: rgba(255, 255, 255, 0.4);
+        letter-spacing: 0.14em;
+      }
 
-      <!-- Edges -->
-      <g class="edge">
-        <!-- Training Pipeline -->
-        <path d="M 180 240 L 180 280" marker-end="url(#arrow)" />
-        <path d="M 180 340 L 180 380" marker-end="url(#arrow)" />
-        
-        <!-- Cross Zone: Classifier to Model -->
-        <path d="M 260 410 L 320 410 L 320 250 L 420 250" marker-end="url(#arrow)" />
-        
-        <!-- Inference -->
-        <path d="M 510 280 L 510 320" marker-end="url(#arrow)" />
-        <path d="M 510 380 L 510 420" marker-end="url(#arrow)" />
+      @keyframes flow {
+        to {
+          stroke-dashoffset: -20;
+        }
+      }
+      .edge path[stroke-dasharray] {
+        animation: flow 1.5s linear infinite;
+        stroke: var(--node-sub);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 600" role="img" aria-labelledby="title desc">
+        <title id="title">Agentic Fraud Sentinel Architecture</title>
+        <desc id="desc">
+          Data & Training Pipeline, Inference, and UI for Agentic Fraud Sentinel
+        </desc>
 
-        <!-- To UI -->
-        <path d="M 600 350 L 720 350" marker-end="url(#arrow)" />
-        
-        <!-- SHAP to UI -->
-        <path d="M 600 450 L 660 450 L 660 370 L 720 370" marker-end="url(#arrow)" />
-      </g>
-    </svg>
-  </div>
-</body>
+        <defs>
+          <marker
+            id="arrow"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path
+              d="M 0 0 L 10 5 L 0 10 z"
+              fill="#525252"
+              style="fill: context-stroke"
+            />
+          </marker>
+        </defs>
+
+        <text x="40" y="60" class="title">Agentic Fraud Sentinel</text>
+        <text x="40" y="80" class="subtitle">
+          XGBoost + LangGraph + FastAPI Pipeline
+        </text>
+
+        <!-- Zones -->
+        <rect x="40" y="120" width="300" height="400" class="zone" />
+        <text x="50" y="135" class="zone-label">DATA & TRAINING PIPELINE</text>
+
+        <rect x="360" y="120" width="300" height="400" class="zone" />
+        <text x="370" y="135" class="zone-label">
+          INFERENCE & INTERPRETABILITY
+        </text>
+
+        <rect x="680" y="120" width="240" height="400" class="zone" />
+        <text x="690" y="135" class="zone-label">USER INTERFACE</text>
+
+        <!-- Nodes -->
+        <g class="node" transform="translate(100, 180)">
+          <rect x="0" y="0" width="160" height="60" />
+          <text x="80" y="25" text-anchor="middle">IEEE-CIS Dataset</text>
+          <text x="80" y="40" class="sub" text-anchor="middle">Raw Data</text>
+        </g>
+        <g class="node" transform="translate(100, 280)">
+          <rect x="0" y="0" width="160" height="60" />
+          <text x="80" y="25" text-anchor="middle">Temporal Splits</text>
+          <text x="80" y="40" class="sub" text-anchor="middle">
+            Feature Engineering
+          </text>
+        </g>
+        <g class="node" transform="translate(100, 380)">
+          <rect x="0" y="0" width="160" height="60" />
+          <text x="80" y="25" text-anchor="middle">XGBoost Classifier</text>
+          <text x="80" y="40" class="sub" text-anchor="middle">
+            Class Weights Balancing
+          </text>
+        </g>
+
+        <g class="node" transform="translate(420, 220)">
+          <rect x="0" y="0" width="180" height="60" />
+          <text x="90" y="25" text-anchor="middle">rf_production.pkl</text>
+          <text x="90" y="40" class="sub" text-anchor="middle">
+            Tuned Model
+          </text>
+        </g>
+        <g class="node" transform="translate(420, 320)">
+          <rect x="0" y="0" width="180" height="60" />
+          <text x="90" y="25" text-anchor="middle">FastAPI + LangGraph</text>
+          <text x="90" y="40" class="sub" text-anchor="middle">
+            Routing Agent
+          </text>
+        </g>
+        <g class="node" transform="translate(420, 420)">
+          <rect x="0" y="0" width="180" height="60" />
+          <text x="90" y="25" text-anchor="middle">Interpretability</text>
+          <text x="90" y="40" class="sub" text-anchor="middle">
+            SHAP Values
+          </text>
+        </g>
+
+        <g class="node" transform="translate(720, 320)">
+          <rect x="0" y="0" width="160" height="60" />
+          <text x="80" y="25" text-anchor="middle">Streamlit Dashboard</text>
+          <text x="80" y="40" class="sub" text-anchor="middle">
+            Real-Time UI
+          </text>
+        </g>
+
+        <!-- Edges -->
+        <g class="edge">
+          <!-- Training Pipeline -->
+          <path d="M 180 240 L 180 280" marker-end="url(#arrow)" />
+          <path d="M 180 340 L 180 380" marker-end="url(#arrow)" />
+
+          <!-- Cross Zone: Classifier to Model -->
+          <path
+            d="M 260 410 L 320 410 L 320 250 L 420 250"
+            marker-end="url(#arrow)"
+          />
+
+          <!-- Inference -->
+          <path d="M 510 280 L 510 320" marker-end="url(#arrow)" />
+          <path d="M 510 380 L 510 420" marker-end="url(#arrow)" />
+
+          <!-- To UI -->
+          <path d="M 600 350 L 720 350" marker-end="url(#arrow)" />
+
+          <!-- SHAP to UI -->
+          <path
+            d="M 600 450 L 660 450 L 660 370 L 720 370"
+            marker-end="url(#arrow)"
+          />
+        </g>
+      </svg>
+    </div>
+  </body>
 </html>
