@@ -80,7 +80,6 @@ def encode_categoricals(train, test):
     Returns:
         tuple: (encoded_train, encoded_test)
     """
-    global label_encoders
     protected = {"isFraud", "TransactionID", "TransactionDT"}
     cat_cols = [
         c for c in train.select_dtypes(include=["object"]).columns if c not in protected

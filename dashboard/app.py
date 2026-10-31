@@ -192,13 +192,13 @@ if not df.empty:
         template="plotly_dark",
         plot_bgcolor="#0C130E",
         paper_bgcolor="#000000",
-        font=dict(family="Fira Code", color="#E0E0E0"),
+        font={"family": "Fira Code", "color": "#E0E0E0"},
         barmode="group",
-        title=dict(text="Metrics across model versions", font=dict(color="#00FF41")),
-        yaxis=dict(range=[0, 1], gridcolor="#1F1F1F"),
-        xaxis=dict(gridcolor="#1F1F1F"),
+        title={"text": "Metrics across model versions", "font": {"color": "#00FF41"}},
+        yaxis={"range": [0, 1], "gridcolor": "#1F1F1F"},
+        xaxis={"gridcolor": "#1F1F1F"},
         height=400,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
     )
 
     colors = ["#00FF41", "#00BFFF", "#FFD700", "#FF3333", "#FF00FF"]
