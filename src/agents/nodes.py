@@ -78,7 +78,7 @@ def risk_scorer_node(state: FraudDetectionState) -> dict:
             "risk_level": risk_level,
         }
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"processing_errors": [f"RiskScorer error: {e!s}"]}
 
 
@@ -120,7 +120,7 @@ def explainer_node(state: FraudDetectionState) -> dict:
             "shap_probability": explanation,
         }
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"[Explainer] ERROR: {e!s}")
         import traceback
 
