@@ -5,7 +5,7 @@ import joblib
 import pandas as pd
 
 from src.agents.state import FraudDetectionState
-from src.explainibility.shap_explainer import explain_single_prediction
+from src.explainability.shap_explainer import explain_single_prediction
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -48,7 +48,7 @@ def risk_scorer_node(state: FraudDetectionState) -> dict:
     Loads transaction features, run Xgboost model, returns fraud probability and a risk tier.
 
     Risk tiers:
-    low < threshold* 0.5 -> almost cerrtainly legitimate
+    low < threshold* 0.5 -> almost certainly legitimate
     medium threshold * 0.5 to threshold -> borderline
     high >= threshold -> model says fraud
     """
