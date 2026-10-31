@@ -1,17 +1,18 @@
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
+from sklearn.impute import SimpleImputer
 
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Master function to apply all feature engineering steps.
-    
+
     Call this on the full joined dataframe before splitting into train/test sets.
-    
+
     Args:
         df (pd.DataFrame): The raw input dataframe.
-        
+
     Returns:
         pd.DataFrame: The engineered dataframe.
     """
@@ -28,16 +29,17 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Extract cyclic time signals from TransactionDT.
-    
+
     TransactionDT is seconds since an arbitrary reference point.
     Extracting hour and day patterns helps identify fraud time trends.
-    
+
     Args:
         df (pd.DataFrame): Dataframe containing 'TransactionDT'.
-        
+
     Returns:
         pd.DataFrame: Dataframe with cyclic time features added.
     """
+    df["tx_hour"] = (df["TransactionDT"] // 3600) % 24
     df["tx_day"] = (df["TransactionDT"] // 86400) % 7
 
     df["tx_hour_sin"] = np.sin(2 * np.pi * df["tx_hour"] / 24)
@@ -66,15 +68,16 @@ COLS_TO_FLAG = [
 def add_missingness_flags(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add binary flags for missing values in key columns before imputing.
-    
+
     Missing information (e.g., no device info attached) is often a strong fraud signal.
-    
+
     Args:
         df (pd.DataFrame): The input dataframe.
-        
+
     Returns:
         pd.DataFrame: Dataframe with missingness flags.
     """
+    for col in COLS_TO_FLAG:
         if col in df.columns:
             df[f"{col}_was_missing"] = df[col].isnull().astype(int)
 
@@ -99,14 +102,14 @@ freq_maps: dict = {}
 def add_frequency_encoding(df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
     """
     Replace each categorical value with its occurrence frequency.
-    
+
     Rare values (e.g., unusual device, unknown email domain) will get low scores.
-    
+
     Args:
         df (pd.DataFrame): The input dataframe.
         fit (bool): If True, learns frequencies from the dataframe (use on train).
                     If False, applies stored frequencies (use on test).
-                    
+
     Returns:
         pd.DataFrame: Dataframe with frequency-encoded columns.
     """
@@ -119,62 +122,94 @@ def add_frequency_encoding(df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
     return df
 
 
+def _window_stats(
+    times: np.ndarray, amounts: np.ndarray, window_secs: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Summarise each transaction's trailing time window, for one card's sorted history.
+
+    Args:
+        times (np.ndarray): Transaction times in seconds, ascending.
+        amounts (np.ndarray): Transaction amounts, which may contain NaN.
+        window_secs (int): The length of the window.
+
+    Returns:
+        tuple: The transaction count in the window, including the current one, and the
+        mean amount of the earlier transactions in it (NaN if there are none).
+    """
+    positions = np.arange(len(times))
+    starts = np.searchsorted(times, times - window_secs, side="left")
+    known = ~np.isnan(amounts)
+    total = np.concatenate(([0.0], np.cumsum(np.where(known, amounts, 0.0))))
+    seen = np.concatenate(([0], np.cumsum(known)))
+
+    earlier = seen[positions] - seen[starts]
+    means = np.full(len(times), np.nan)
+    has_earlier = earlier > 0
+    means[has_earlier] = (total[positions] - total[starts])[has_earlier] / earlier[has_earlier]
+    return positions - starts + 1, means
+
+
 def add_behavioral_aggregates(df: pd.DataFrame) -> DataFrame:
     """
     Compute behavioral aggregate features for each card's recent history.
-    
+
     Compares the current transaction to the card's history using rolling windows.
     Data is sorted by time first to ensure windows only look backward.
-    
+
     Args:
         df (pd.DataFrame): Dataframe containing transaction amounts and times.
-        
+
     Returns:
         pd.DataFrame: Dataframe with behavioral aggregates added.
     """
     df = df.sort_values("TransactionDT").reset_index(drop=True)
+    times = df["TransactionDT"].to_numpy(dtype=float)
+    amounts = df["TransactionAmt"].to_numpy(dtype=float)
+    card_rows = df.groupby("card1").indices.values()
 
     for window_secs, label in [(3600, "1h"), (86400, "24h")]:
-
-        df[f"card1_count_{label}"] = df.groupby("card1")["TransactionDT"].transform(
-            lambda x: x.expanding().count()
-        )
-
-        df[f"card1_mean_amt_{label}"] = df.groupby("card1")["TransactionAmt"].transform(
-            lambda x: x.expanding().mean().shift(1)
-        )
+        counts = np.full(len(df), np.nan)
+        means = np.full(len(df), np.nan)
+        for rows in card_rows:
+            counts[rows], means[rows] = _window_stats(
+                times[rows], amounts[rows], window_secs
+            )
+        df[f"card1_count_{label}"] = counts
+        df[f"card1_mean_amt_{label}"] = means
 
     df["amt_deviation"] = df["TransactionAmt"] - df["card1_mean_amt_24h"]
 
     return df
 
 
-from sklearn.impute import SimpleImputer
-
-num_imputer = SimpleImputer(strategy="median")
+num_imputer = SimpleImputer(strategy="median", keep_empty_features=True)
 cat_imputer = SimpleImputer(strategy="constant", fill_value="missing")
 
 
 def impute_missing(df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
     """
     Impute missing values for numerical and categorical columns.
-    
+
     Args:
         df (pd.DataFrame): The input dataframe.
         fit (bool): If True, fits imputers on this data (train only).
                     If False, transforms using already-fitted imputers (test).
-                    
+
     Returns:
         pd.DataFrame: The imputed dataframe.
     """
-    cat_cols = df.select_dtypes(include=["object"]).columns.tolist()
+    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    cat_cols = df.select_dtypes(include=["object", "string"]).columns.tolist()
 
     if fit:
         df[num_cols] = num_imputer.fit_transform(df[num_cols])
-        df[cat_cols] = cat_imputer.fit_transform(df[cat_cols])
+        if cat_cols:
+            df[cat_cols] = cat_imputer.fit_transform(df[cat_cols])
 
     else:
         df[num_cols] = num_imputer.transform(df[num_cols])
-        df[cat_cols] = cat_imputer.transform(df[cat_cols])
+        if cat_cols:
+            df[cat_cols] = cat_imputer.transform(df[cat_cols])
 
     return df

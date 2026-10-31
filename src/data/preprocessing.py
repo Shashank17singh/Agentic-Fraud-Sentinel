@@ -89,11 +89,8 @@ def encode_categoricals(train, test):
         le = LabelEncoder()
         train[col] = le.fit_transform(train[col].astype(str))
         le_classes = set(le.classes_)
-        test[col] = (
-            test[col]
-            .astype(str)
-            .apply(lambda x: x if x in le_classes else "__unknown__")
-        )
+        values = test[col].astype(str)
+        test[col] = values.where(values.isin(le_classes), "__unknown__")
         if "__unknown__" not in le_classes:
             le.classes_ = np.append(le.classes_, "__unknown__")
         test[col] = le.transform(test[col])
