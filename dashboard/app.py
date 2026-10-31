@@ -254,12 +254,8 @@ if st.button("Run fraud check", type="primary"):
         if response.status_code == 200:
             result = response.json()
 
-            decision_color = {"approve": "✅", "flag": "⚠️", "deny": "🚨"}.get(
-                result["decision"], "❓"
-            )
-
             st.markdown(
-                f"### {decision_color} Decision: `{result['decision'].upper()}`"
+                f"### Decision: `{result['decision'].upper()}`"
             )
 
             col1, col2, col3 = st.columns(3)
