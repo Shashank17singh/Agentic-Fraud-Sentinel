@@ -1,10 +1,31 @@
 import os
 
 import joblib
+import optuna
+from lightgbm import LGBMClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import average_precision_score
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
+from xgboost import XGBClassifier
 
 MODEL_DIR = "data/models/"
+
+# The tuned hyperparameters of xgboost_production.pkl, read back from the saved model.
+PRODUCTION_XGB_PARAMS = {
+    "n_estimators": 705,
+    "max_depth": 8,
+    "learning_rate": 0.12963216466172517,
+    "subsample": 0.7015663799319409,
+    "colsample_bytree": 0.9832675663386035,
+    "gamma": 0.3162663223081429,
+    "min_child_weight": 1,
+    "reg_alpha": 5.167682983405994e-08,
+    "reg_lambda": 5.7057896030047325e-06,
+    "eval_metric": "aucpr",
+    "enable_categorical": True,
+    "random_state": 42,
+    "n_jobs": -1,
+}
 
 
 def train_random_forest_baseline(X_train, Y_train):
@@ -124,3 +145,95 @@ def tune_random_forest(X_train, Y_train):
     tuned_model.fit(X_train, Y_train)
 
     return tuned_model, grid_search
+
+
+def train_xgboost_baseline(X_train, Y_train):
+    """
+    Train a baseline XGBoost classifier for fraud detection.
+
+    Args:
+        X_train (pd.DataFrame): The training features.
+        Y_train (pd.Series/pd.DataFrame): The training labels.
+
+    Returns:
+        XGBClassifier: The trained model.
+    """
+    model = XGBClassifier(
+        n_estimators=300,
+        max_depth=6,
+        learning_rate=0.1,
+        eval_metric="aucpr",
+        random_state=42,
+        n_jobs=-1,
+    )
+    model.fit(X_train, Y_train)
+    return model
+
+
+def train_lightgbm_baseline(X_train, Y_train):
+    """
+    Train a baseline LightGBM classifier for fraud detection.
+
+    Args:
+        X_train (pd.DataFrame): The training features.
+        Y_train (pd.Series/pd.DataFrame): The training labels.
+
+    Returns:
+        LGBMClassifier: The trained model.
+    """
+    model = LGBMClassifier(
+        n_estimators=300, learning_rate=0.1, random_state=42, n_jobs=-1, verbose=-1
+    )
+    model.fit(X_train, Y_train)
+    return model
+
+
+def tune_xgboost(X_train, Y_train, n_trials=50):
+    """
+    Tune XGBoost with Optuna, then refit the best settings on all training data.
+
+    Each trial is scored by average precision on the most recent 20% of the rows,
+    which are held out in time order to match how the model is used.
+
+    Args:
+        X_train (pd.DataFrame): The training features, in time order.
+        Y_train (pd.Series/pd.DataFrame): The training labels.
+        n_trials (int): The number of Optuna trials.
+
+    Returns:
+        tuple: The refitted XGBClassifier and the Optuna study.
+    """
+    split = int(len(X_train) * 0.8)
+    X_fit, X_val = X_train.iloc[:split], X_train.iloc[split:]
+    Y_fit, Y_val = Y_train.iloc[:split], Y_train.iloc[split:]
+    fixed = {
+        "eval_metric": "aucpr",
+        "enable_categorical": True,
+        "random_state": 42,
+        "n_jobs": -1,
+    }
+
+    def objective(trial):
+        params = {
+            "n_estimators": trial.suggest_int("n_estimators", 200, 1000),
+            "max_depth": trial.suggest_int("max_depth", 3, 10),
+            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+            "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+            "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+            "gamma": trial.suggest_float("gamma", 1e-8, 1.0, log=True),
+            "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
+            "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 10.0, log=True),
+            "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 10.0, log=True),
+        }
+        model = XGBClassifier(**params, **fixed)
+        model.fit(X_fit, Y_fit)
+        return average_precision_score(Y_val, model.predict_proba(X_val)[:, 1])
+
+    study = optuna.create_study(
+        direction="maximize", sampler=optuna.samplers.TPESampler(seed=42)
+    )
+    study.optimize(objective, n_trials=n_trials)
+
+    model = XGBClassifier(**study.best_params, **fixed)
+    model.fit(X_train, Y_train)
+    return model, study
