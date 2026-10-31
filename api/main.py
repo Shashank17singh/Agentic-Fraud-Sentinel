@@ -1,4 +1,5 @@
 # pyrefly: ignore [missing-import]
+import logging
 import os
 import sys
 from typing import Any
@@ -22,6 +23,8 @@ else:
 
 
 from src.agents.graph import build_fraud_graph
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Agentic-Fraud-Sentinel API",
@@ -128,7 +131,8 @@ def predict(request: TransactionRequest):
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Predcition failed: {e!s}")
+        logger.exception("Prediction failed")
+        raise HTTPException(status_code=500, detail="Prediction failed.") from e
 
 
 app.get("/metrics")
