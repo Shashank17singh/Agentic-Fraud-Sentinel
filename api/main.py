@@ -135,9 +135,7 @@ def predict(request: TransactionRequest):
         raise HTTPException(status_code=500, detail="Prediction failed.") from e
 
 
-app.get("/metrics")
-
-
+@app.get("/metrics")
 def get_metrics():
     """
     Retrieve basic model metadata and performance metrics.
