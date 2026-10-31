@@ -184,7 +184,6 @@ def add_behavioral_aggregates(df: pd.DataFrame) -> DataFrame:
 
 
 num_imputer = SimpleImputer(strategy="median", keep_empty_features=True)
-cat_imputer = SimpleImputer(strategy="constant", fill_value="missing")
 
 
 def impute_missing(df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
@@ -202,14 +201,12 @@ def impute_missing(df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
     num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     cat_cols = df.select_dtypes(include=["object", "string"]).columns.tolist()
 
+    df[cat_cols] = df[cat_cols].fillna("missing")
+
     if fit:
         df[num_cols] = num_imputer.fit_transform(df[num_cols])
-        if cat_cols:
-            df[cat_cols] = cat_imputer.fit_transform(df[cat_cols])
 
     else:
         df[num_cols] = num_imputer.transform(df[num_cols])
-        if cat_cols:
-            df[cat_cols] = cat_imputer.transform(df[cat_cols])
 
     return df
