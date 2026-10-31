@@ -2,7 +2,7 @@
 
 # Agentic-Fraud-Sentinel
 
-**A production-grade fraud detection system using XGBoost classifiers with LangGraph-based multi-agent routing, strict class balancing weights, and a real-time FastAPI backend.**
+**A fraud detection system that pairs an XGBoost classifier with a LangGraph decision workflow, SHAP explanations and a FastAPI backend.**
 
 [![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![XGBoost](https://img.shields.io/badge/XGBoost-Machine%20Learning-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://xgboost.readthedocs.io/)
@@ -16,7 +16,7 @@
 
 ## Overview
 
-Developed an advanced financial fraud detection system utilizing an optimized XGBoost model tuned with Optuna. Engineered temporal features and balanced data using SMOTE to tackle class imbalance, and integrated SHAP values to provide game-theoretic interpretability for model predictions.
+A financial fraud detection system built on a tuned XGBoost model. Engineered temporal features capture behavior over time, SMOTE addresses the class imbalance, and SHAP values explain each prediction. A LangGraph workflow scores a transaction, explains the score and applies policy rules, then approves it or sends it for human review.
 
 ---
 
@@ -26,8 +26,8 @@ Developed an advanced financial fraud detection system utilizing an optimized XG
 graph TD
     subgraph "Data & Training Pipeline"
     A[IEEE-CIS Dataset] -->|Feature Engineering| B(Temporal Splits)
-    B -->|Class Weights Balancing| C{XGBoost Classifier}
-    C -->|GridSearchCV Tuning| D[models/rf_production.pkl]
+    B -->|SMOTE Balancing| C{XGBoost Classifier}
+    C -->|Hyperparameter Tuning| D[models/xgboost_production.pkl]
     end
 
     subgraph "Inference & Interpretability"
@@ -57,8 +57,8 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 
 | Component                      | Description                                                                                                                                                                                                                  |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Data & Feature Engineering** | Performs time-based splitting (by `TransactionDT`) to simulate real-world data drift. Implements rolling aggregates, frequency encoding, missingness flags, and class weights to balance representation (3.5% to 10% fraud). |
-| **Agentic ML Core**            | Trains an XGBoost classifier tuned via Optuna. Inference requests are routed intelligently via LangGraph agents to decide if a transaction needs manual review or automatic block based on SHAP values.                      |
+| **Data & Feature Engineering** | Performs time-based splitting (by `TransactionDT`) to simulate real-world data drift. Implements rolling aggregates, frequency encoding, missingness flags, and SMOTE to balance representation (3.5% to 10% fraud). |
+| **Agentic ML Core**            | Trains an XGBoost classifier tuned via Optuna. Inference requests are routed intelligently via LangGraph agents to decide if a transaction needs manual review, based on the model score and policy rules.                      |
 | **Interpretability Layer**     | Uses SHAP (SHapley Additive exPlanations) to generate per-prediction feature attribution for model transparency and interpretability.                                                                                        |
 | **Deployment Services**        | Fully containerized environment featuring a FastAPI backend (`/predict`) powered by LangGraph, and a real-time Streamlit monitoring dashboard.                                                                               |
 
@@ -71,6 +71,8 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 | **XGBoost Baseline**          | 0.9012  | 0.5246 |  0.8007   | 0.3253 |  0.4626  |
 | **Optuna Tuned XGBoost**      | 0.9070  | 0.5758 |  0.8335   | 0.3942 |  0.5352  |
 | **Optimal Threshold** (0.216) | 0.9070  | 0.5758 |  0.6990   | 0.4845 |  0.5723  |
+
+The shipped model was trained before the 1-hour and 24-hour card windows were corrected, so both of its window features cover the card's full history. The next retrain picks up the true windows.
 
 **Key Exploratory Data Analysis (EDA) Insights:**
 
@@ -85,7 +87,7 @@ The platform processes the standard **IEEE-CIS Dataset** (590k transactions) thr
 | Component                    | Technologies                        |
 | :--------------------------- | :---------------------------------- |
 | **Data Processing**          | `pandas`, `numpy`, `scikit-learn`   |
-| **Imbalanced Learning**      | `Class Weights Integration`         |
+| **Imbalanced Learning**      | `imbalanced-learn` (SMOTE)         |
 | **Machine Learning**         | `XGBoost`, `Scikit-learn`           |
 | **Hyperparameter Tuning**    | `Optuna`, `Cross-Validation`        |
 | **Interpretability**         | `SHAP`                              |
@@ -109,9 +111,10 @@ Agentic-Fraud-Sentinel/
 │   ├── model.ipynb           # Model training & tuning
 │   └── evaluation.ipynb      # Model evaluation & analysis
 ├── src/
+│   ├── agents/               # LangGraph workflow
 │   ├── data/                 # Data pipelines
 │   ├── models/               # Training & evaluation scripts
-│   └── interpretability/     # Feature importance analysis
+│   └── explainability/       # SHAP explainer
 ├── api/
 │   └── main.py               # FastAPI application
 ├── dashboard/
@@ -151,11 +154,7 @@ Download the IEEE-CIS Fraud Detection dataset from [Kaggle](https://www.kaggle.c
 
 ## CI/CD Pipeline
 
-This repository is equipped with a GitHub Actions workflow (`.github/workflows/ci.yml`). Every push to the `main` branch triggers:
-
-1. **Formatting Checks**: Ensures compliance with `black` and `isort`.
-2. **Linting**: Runs `flake8` to catch syntax errors and undefined variables.
-3. **Unit Tests**: Executes the `pytest` suite to ensure API and model stability.
+The GitHub Actions workflow (`.github/workflows/ci.yml`) installs the dependencies and runs the `pytest` suite in `tests/`.
 
 ---
 
@@ -163,18 +162,22 @@ This repository is equipped with a GitHub Actions workflow (`.github/workflows/c
 
 | File                                          | Purpose / Details                                |
 | --------------------------------------------- | ------------------------------------------------ |
-| `api\main.py`                                 | Core component logic and implementation details. |
-| `dashboard\app.py`                            | Core component logic and implementation details. |
-| `dashboard\requirements.txt`                  | Core component logic and implementation details. |
-| `notebooks\api.ipynb`                         | Core component logic and implementation details. |
-| `notebooks\data\model_results\model_log.json` | Core component logic and implementation details. |
-| `notebooks\eda.ipynb`                         | Core component logic and implementation details. |
-| `notebooks\graph.ipynb`                       | Core component logic and implementation details. |
-| `notebooks\model.ipynb`                       | Core component logic and implementation details. |
-| `notebooks\preprocessing.ipynb`               | Core component logic and implementation details. |
-| `notebooks\shap.ipynb`                        | Core component logic and implementation details. |
-| `requirements.txt`                            | Core component logic and implementation details. |
-| `src\agents\graph.py`                         | Core component logic and implementation details. |
-| `src\agents\nodes.py`                         | Core component logic and implementation details. |
-| `src\agents\state.py`                         | Core component logic and implementation details. |
-| `src\data\features.py`                        | Core component logic and implementation details. |
+| `api\main.py` | FastAPI service exposing `/health` and `/predict`. |
+| `dashboard\app.py` | Streamlit dashboard for logged model metrics and live API predictions. |
+| `dashboard\requirements.txt` | Python dependencies for the dashboard. |
+| `notebooks\api.ipynb` | Notebook that sends requests to the API. |
+| `notebooks\data\model_results\model_log.json` | Evaluation metrics recorded for each model. |
+| `notebooks\eda.ipynb` | Exploratory data analysis. |
+| `notebooks\graph.ipynb` | Notebook for the LangGraph workflow. |
+| `notebooks\model.ipynb` | Model training and tuning. |
+| `notebooks\preprocessing.ipynb` | Feature engineering and SMOTE preprocessing. |
+| `notebooks\shap.ipynb` | SHAP explainability analysis. |
+| `requirements.txt` | Python dependencies for the API and training code. |
+| `src\agents\graph.py` | Builds the LangGraph workflow: risk scoring, explanation, policy, then human review or auto-approval, and a report. |
+| `src\agents\nodes.py` | One function per workflow step, using the XGBoost model and SHAP explainer. |
+| `src\agents\state.py` | `FraudDetectionState`, the state passed between workflow steps. |
+| `src\data\features.py` | Time features, missingness flags, frequency encoding, behavioral aggregates and imputation. |
+| `src\data\preprocessing.py` | Time-based split, categorical encoding and SMOTE. |
+| `src\explainability\shap_explainer.py` | SHAP explainer for the XGBoost model. |
+| `src\models\train.py` | XGBoost and LightGBM baselines, Optuna tuning, the shipped model's parameters, and model saving and loading. |
+| `src\models\evaluate.py` | Model evaluation. |
