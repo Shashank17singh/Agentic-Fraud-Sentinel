@@ -1,0 +1,8 @@
+[theme]
+# Near-black console with alert red, for a fraud monitor.
+base = "dark"
+primaryColor = "#e5484d"
+backgroundColor = "#121212"
+secondaryBackgroundColor = "#1e1b1b"
+textColor = "#ececec"
+font = "sans-serif"
