@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import joblib
 import pandas as pd
@@ -227,7 +227,7 @@ def report_node(state: FraudDetectionState) -> dict:
 
     report = {
         "transaction_id": state["transaction_id"],
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "fraud_probability": state["fraud_probability"],
         "risk_level": state["risk_level"],
         "decision": state["decision"],

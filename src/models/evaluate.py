@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -55,7 +55,7 @@ def evaluate_model(model, X_test, Y_test, threshold=0.5, model_name="model"):
 
     results = {
         "model_name": model_name,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "threshold": threshold,
         "auc_roc": round(auc_roc, 4),
         "auc_pr": round(auc_pr, 4),

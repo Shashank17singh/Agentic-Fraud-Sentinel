@@ -2,9 +2,15 @@
 
 A fraud detection system that pairs an XGBoost classifier with a LangGraph decision workflow, SHAP explanations and a FastAPI backend.
 
+> **Live Deployments:**
+> * **Interactive API Documentation:** [agentic-fraud-sentinel.onrender.com/docs](https://agentic-fraud-sentinel.onrender.com/docs)
+> * **Streamlit Monitoring Dashboard:** [agentic-fraud-sentinel.streamlit.app](https://agentic-fraud-sentinel.streamlit.app/)
+
+---
+
 ## Overview
 
-A financial fraud detection system built on a tuned XGBoost model. Engineered temporal features capture behavior over time, SMOTE addresses the class imbalance, and SHAP values explain each prediction. A LangGraph workflow scores a transaction, explains the score and applies policy rules, then approves it or sends it for human review.
+Agentic Fraud Sentinel protects payment rails by pairing machine learning classification with agentic decision workflows. Built on a tuned XGBoost model, the system leverages engineered temporal features to capture evolving user behavior, SMOTE to address severe class imbalance, and SHAP attribution values to explain every prediction. A LangGraph workflow scores incoming transactions, computes feature contributions, applies institutional policy guardrails, and routes ambiguous edge cases to human investigators.
 
 ---
 
@@ -37,83 +43,84 @@ graph TD
     class G ui;
 ```
 
-The platform processes the standard **IEEE-CIS Dataset** (590k transactions) through a multi-stage pipeline.
+The platform processes the IEEE-CIS Dataset (590k transactions) through a multi-stage data and evaluation pipeline.
 
 ---
 
 ## Features
 
-| Component                      | Description                                                                                                                                                                                                                  |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Data & Feature Engineering** | Performs time-based splitting (by `TransactionDT`) to simulate real-world data drift. Implements rolling aggregates, frequency encoding, missingness flags, and SMOTE to balance representation (3.5% to 10% fraud). |
-| **Agentic ML Core**            | Trains an XGBoost classifier tuned via Optuna. Inference requests are routed intelligently via LangGraph agents to decide if a transaction needs manual review, based on the model score and policy rules.                      |
-| **Interpretability Layer**     | Uses SHAP (SHapley Additive exPlanations) to generate per-prediction feature attribution for model transparency and interpretability.                                                                                        |
-| **Deployment Services**        | Fully containerized environment featuring a FastAPI backend (`/predict`) powered by LangGraph, and a real-time Streamlit monitoring dashboard.                                                                               |
+| Feature | Description |
+| ------- | ----------- |
+| **Data & Feature Engineering** | Time-based splitting (by `TransactionDT`) to simulate real-world data drift. Implements rolling aggregates, frequency encoding, missingness flags, and SMOTE to balance fraud representation (3.5% to 10%). |
+| **Agentic Decision Core** | XGBoost classifier tuned via Optuna. Inference requests are routed intelligently via LangGraph agents to determine whether transactions are approved, declined, or escalated to human review. |
+| **Interpretability Layer** | TreeSHAP (SHapley Additive exPlanations) generates per-prediction feature attribution for transparent audit trails. |
+| **Dual Serving Stack** | Containerized FastAPI backend (`/predict`) powered by LangGraph, paired with a real-time Streamlit operations dashboard. |
 
 ---
 
 ## Model Performance Metrics
 
-| Optimization Stage            | AUC-ROC | AUC-PR | Precision | Recall | F1 Score |
-| :---------------------------- | :-----: | :----: | :-------: | :----: | :------: |
-| **XGBoost Baseline**          | 0.9012  | 0.5246 |  0.8007   | 0.3253 |  0.4626  |
-| **Optuna Tuned XGBoost**      | 0.9070  | 0.5758 |  0.8335   | 0.3942 |  0.5352  |
-| **Optimal Threshold** (0.216) | 0.9070  | 0.5758 |  0.6990   | 0.4845 |  0.5723  |
+| Optimization Stage | AUC-ROC | AUC-PR | Precision | Recall | F1 Score |
+| :----------------- | :-----: | :----: | :-------: | :----: | :------: |
+| **XGBoost Baseline** | 0.9012 | 0.5246 | 0.8007 | 0.3253 | 0.4626 |
+| **Optuna Tuned XGBoost** | 0.9070 | 0.5758 | 0.8335 | 0.3942 | 0.5352 |
+| **Optimal Threshold** (0.216) | 0.9070 | 0.5758 | 0.6990 | 0.4845 | 0.5723 |
 
-The shipped model was trained before the 1-hour and 24-hour card windows were corrected, so both of its window features cover the card's full history. The next retrain picks up the true windows.
-
-**Key Exploratory Data Analysis (EDA) Insights:**
-
-- Fraud rate is strictly non-stationary, ranging from 2%–4.8% over a 185-day window.
-- Handled 214 high-cardinality features with >50% missing values via strict missingness flags.
-- `TransactionAmt` alone is an extremely weak signal; 4 out of 6 engineered behavioral features dominate the feature importance rankings.
+**Exploratory Data Analysis (EDA) Highlights:**
+- Fraud rate is non-stationary, varying between 2.0% and 4.8% across the 185-day transaction window.
+- 214 high-cardinality features with >50% missingness are tracked via explicit indicators.
+- `TransactionAmt` alone provides weak discrimination; 4 out of 6 engineered behavioral velocity features dominate the feature attribution hierarchy.
 
 ---
 
 ## Technology Stack
 
-| Component                    | Technologies                        |
-| :--------------------------- | :---------------------------------- |
-| **Data Processing**          | `pandas`, `numpy`, `scikit-learn`   |
-| **Imbalanced Learning**      | `imbalanced-learn` (SMOTE)         |
-| **Machine Learning**         | `XGBoost`, `Scikit-learn`           |
-| **Hyperparameter Tuning**    | `Optuna`, `Cross-Validation`        |
-| **Interpretability**         | `SHAP`                              |
-| **Agentic Routing**          | `LangGraph`, `LangChain`            |
-| **API & Serving**            | `FastAPI`, `uvicorn`                |
-| **Frontend & Visualization** | `Streamlit`, `Matplotlib`, `Plotly` |
-| **Containerization**         | `Docker`                            |
+| Component | Technologies |
+| :-------- | :----------- |
+| **Data Processing** | `pandas`, `numpy`, `scikit-learn` |
+| **Imbalanced Learning** | `imbalanced-learn` (SMOTE) |
+| **Machine Learning** | `XGBoost`, `Scikit-learn` |
+| **Hyperparameter Tuning** | `Optuna`, TimeSeriesSplit Cross-Validation |
+| **Interpretability** | `SHAP` |
+| **Agentic Workflow** | `LangGraph`, `LangChain` |
+| **API & Serving** | `FastAPI`, `uvicorn` |
+| **Frontend & Analytics** | `Streamlit`, `Matplotlib`, `Plotly` |
+| **Testing & CI** | `pytest`, `ruff`, GitHub Actions |
+| **Containerization** | `Docker` |
 
 ---
 
 ## Project Structure
 
-```text
+```
 Agentic-Fraud-Sentinel/
+├── api/
+│   └── main.py               # FastAPI service exposing /health and /predict
+├── dashboard/
+│   └── app.py                # Streamlit monitoring and investigation UI
 ├── data/
-│   ├── raw/                  # IEEE-CIS source CSVs
+│   ├── raw/                  # IEEE-CIS source datasets
 │   └── processed/            # Engineered, split, balanced data
 ├── notebooks/
 │   ├── eda.ipynb             # Exploratory Data Analysis
 │   ├── preprocessing.ipynb   # Feature engineering pipelines
-│   ├── model.ipynb           # Model training & tuning
-│   └── evaluation.ipynb      # Model evaluation & analysis
+│   ├── model.ipynb           # Model training and Optuna tuning
+│   └── evaluation.ipynb      # Precision-Recall & ROC evaluation
 ├── src/
-│   ├── agents/               # LangGraph workflow
-│   ├── data/                 # Data pipelines
-│   ├── models/               # Training & evaluation scripts
-│   └── explainability/       # SHAP explainer
-├── api/
-│   └── main.py               # FastAPI application
-├── dashboard/
-│   └── app.py                # Streamlit monitoring UI
+│   ├── agents/               # LangGraph workflow, state, and decision nodes
+│   ├── data/                 # Feature extraction and preprocessing
+│   ├── explainability/       # TreeSHAP explainer engine
+│   └── models/               # Model training, evaluation, and serialization
+├── tests/
+│   └── test_agents.py        # Automated test suite
 ├── Dockerfile                # Container configuration
-└── requirements.txt          # Python dependencies
+├── requirements.txt          # Production dependencies
+└── README.md
 ```
 
 ---
 
-## Setup & Execution
+## Setup and Installation
 
 ### 1. Environment Initialization
 
@@ -121,51 +128,73 @@ Agentic-Fraud-Sentinel/
 git clone https://github.com/Shashank17singh/Agentic-Fraud-Sentinel.git
 cd Agentic-Fraud-Sentinel
 python -m venv venv
-source venv/bin/activate      # Linux/Mac
-venv\Scripts\activate         # Windows
+# Linux / macOS:
+source venv/bin/activate
+# Windows:
+venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Dataset Ingestion
+### 2. Dataset Preparation
 
-Download the IEEE-CIS Fraud Detection dataset from [Kaggle](https://www.kaggle.com/c/ieee-fraud-detection). Place the raw files in the `data/raw/` directory:
-
+Download the IEEE-CIS Fraud Detection dataset from [Kaggle](https://www.kaggle.com/c/ieee-fraud-detection). Place the raw CSV files in `data/raw/`:
 - `data/raw/train_transaction.csv`
 - `data/raw/train_identity.csv`
 
-### 3. Deployment
+### 3. Running Locally
 
-- **API URL:** https://agentic-fraud-sentinel.onrender.com/docs
-- **Dashboard URL:** https://agentic-fraud-sentinel.streamlit.app/
+Start the FastAPI inference backend:
+
+```bash
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+In a separate terminal, launch the Streamlit operations dashboard:
+
+```bash
+streamlit run dashboard/app.py
+```
 
 ---
 
-## CI/CD Pipeline
+## Running the Tests
 
-The GitHub Actions workflow (`.github/workflows/ci.yml`) installs the dependencies and runs the `pytest` suite in `tests/`.
+Execute the automated test suite with pytest:
+
+```bash
+pytest tests/
+```
+
+Run static code analysis and linting:
+
+```bash
+ruff check .
+```
 
 ---
 
-## Deep Codebase Analysis
+## Deployment
 
-| File                                          | Purpose / Details                                |
-| --------------------------------------------- | ------------------------------------------------ |
-| `api\main.py` | FastAPI service exposing `/health` and `/predict`. |
-| `dashboard\app.py` | Streamlit dashboard for logged model metrics and live API predictions. |
-| `dashboard\requirements.txt` | Python dependencies for the dashboard. |
-| `notebooks\api.ipynb` | Notebook that sends requests to the API. |
-| `notebooks\data\model_results\model_log.json` | Evaluation metrics recorded for each model. |
-| `notebooks\eda.ipynb` | Exploratory data analysis. |
-| `notebooks\graph.ipynb` | Notebook for the LangGraph workflow. |
-| `notebooks\model.ipynb` | Model training and tuning. |
-| `notebooks\preprocessing.ipynb` | Feature engineering and SMOTE preprocessing. |
-| `notebooks\shap.ipynb` | SHAP explainability analysis. |
-| `requirements.txt` | Python dependencies for the API and training code. |
-| `src\agents\graph.py` | Builds the LangGraph workflow: risk scoring, explanation, policy, then human review or auto-approval, and a report. |
-| `src\agents\nodes.py` | One function per workflow step, using the XGBoost model and SHAP explainer. |
-| `src\agents\state.py` | `FraudDetectionState`, the state passed between workflow steps. |
-| `src\data\features.py` | Time features, missingness flags, frequency encoding, behavioral aggregates and imputation. |
-| `src\data\preprocessing.py` | Time-based split, categorical encoding and SMOTE. |
-| `src\explainability\shap_explainer.py` | SHAP explainer for the XGBoost model. |
-| `src\models\train.py` | XGBoost and LightGBM baselines, Optuna tuning, the shipped model's parameters, and model saving and loading. |
-| `src\models\evaluate.py` | Model evaluation. |
+The service includes a production Docker configuration running under an unprivileged user:
+
+```bash
+docker build -t agentic-fraud-sentinel .
+docker run -p 8000:8000 agentic-fraud-sentinel
+```
+
+Live deployments:
+- **API Documentation:** [agentic-fraud-sentinel.onrender.com/docs](https://agentic-fraud-sentinel.onrender.com/docs)
+- **Monitoring UI:** [agentic-fraud-sentinel.streamlit.app](https://agentic-fraud-sentinel.streamlit.app/)
+
+---
+
+## Known Limitations
+
+- TreeSHAP explanations for high-cardinality multi-feature transactions introduce moderate latency during cold-start inference; background pre-caching is recommended for high-throughput production rails.
+- Shipped baseline weights reflect historical time splits; recurring retraining cycles are required to guard against continuous concept drift in card-not-present payment patterns.
+
+---
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
