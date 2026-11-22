@@ -66,6 +66,8 @@ The platform processes the IEEE-CIS Dataset (590k transactions) through a multi-
 | **Optuna Tuned XGBoost** | 0.9070 | 0.5758 | 0.8335 | 0.3942 | 0.5352 |
 | **Optimal Threshold** (0.216) | 0.9070 | 0.5758 | 0.6990 | 0.4845 | 0.5723 |
 
+These numbers come from an earlier version of the pipeline. It fitted imputation on the full dataset and chose the 0.216 threshold on the test set, so the last row is optimistic. The pipeline now fits on train only and picks the threshold on a held-out validation slice. [`notebooks/colab_retrain.ipynb`](notebooks/colab_retrain.ipynb) retrains with it, and this table will be replaced with the new results.
+
 **Exploratory Data Analysis (EDA) Highlights:**
 - Fraud rate is non-stationary, varying between 2.0% and 4.8% across the 185-day transaction window.
 - 214 high-cardinality features with >50% missingness are tracked via explicit indicators.
