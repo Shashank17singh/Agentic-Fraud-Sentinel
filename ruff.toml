@@ -1,0 +1,2 @@
+# CI runs Python 3.10, so lint must not suggest 3.11+ APIs such as datetime.UTC.
+target-version = "py310"

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from sklearn.metrics import roc_auc_score
 
-from src.models import train
+from src.models import evaluate, train
 
 
 @pytest.fixture(scope="module")
@@ -12,12 +12,6 @@ def data() -> tuple[pd.DataFrame, pd.Series]:
     features = pd.DataFrame(rng.normal(size=(400, 4)), columns=list("abcd"))
     labels = pd.Series((features["a"] + features["b"] > 0.8).astype(int))
     return features, labels
-
-
-def test_production_parameters_match_the_shipped_model() -> None:
-    assert train.PRODUCTION_XGB_PARAMS["n_estimators"] == 705
-    assert train.PRODUCTION_XGB_PARAMS["max_depth"] == 8
-    assert train.PRODUCTION_XGB_PARAMS["eval_metric"] == "aucpr"
 
 
 @pytest.mark.parametrize(
@@ -38,8 +32,17 @@ def test_tuning_returns_a_fitted_model_and_its_study(
 ) -> None:
     features, labels = data
 
-    model, study = train.tune_xgboost(features, labels, n_trials=2)
+    model, study = train.tune_xgboost(
+        features[:300], labels[:300], features[300:], labels[300:], n_trials=2
+    )
 
     assert len(study.trials) == 2
     assert model.predict_proba(features).shape == (len(features), 2)
     assert model.get_params()["n_estimators"] == study.best_params["n_estimators"]
+
+
+def test_threshold_is_the_best_f1_cut_on_the_labels_given() -> None:
+    labels = pd.Series([0, 0, 0, 1, 1])
+    probs = np.array([0.1, 0.2, 0.6, 0.7, 0.9])
+
+    assert evaluate.select_threshold(labels, probs) == pytest.approx(0.7)

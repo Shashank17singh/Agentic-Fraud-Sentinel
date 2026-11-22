@@ -9,12 +9,32 @@ from sklearn.metrics import (
     average_precision_score,
     confusion_matrix,
     f1_score,
+    precision_recall_curve,
     precision_score,
     recall_score,
     roc_auc_score,
 )
 
 RESULTS_DIR = "data/model_results"
+
+
+def select_threshold(Y_val, Y_prob):
+    """
+    Pick the probability cut with the best F1 on validation data.
+
+    Call this on validation predictions only. Choosing it on the test set would
+    leak the test labels into the reported metrics.
+
+    Args:
+        Y_val (pd.Series/np.ndarray): The validation labels.
+        Y_prob (np.ndarray): The predicted fraud probabilities for those rows.
+
+    Returns:
+        float: The chosen threshold.
+    """
+    precisions, recalls, thresholds = precision_recall_curve(Y_val, Y_prob)
+    f1 = 2 * precisions[:-1] * recalls[:-1] / (precisions[:-1] + recalls[:-1] + 1e-12)
+    return float(thresholds[f1.argmax()])
 
 
 def evaluate_model(model, X_test, Y_test, threshold=0.5, model_name="model"):

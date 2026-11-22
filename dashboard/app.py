@@ -268,7 +268,13 @@ if not df.empty:
         yaxis={"range": [0, 1], "gridcolor": "#1F1F1F"},
         xaxis={"gridcolor": "#1F1F1F"},
         height=400,
-        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "right",
+            "x": 1,
+        },
     )
 
     colors = ["#00FF41", "#00BFFF", "#FFD700", "#FF3333", "#FF00FF"]
@@ -324,9 +330,7 @@ if st.button("Run fraud check", type="primary"):
         if response.status_code == 200:
             result = response.json()
 
-            st.markdown(
-                f"### Decision: `{result['decision'].upper()}`"
-            )
+            st.markdown(f"### Decision: `{result['decision'].upper()}`")
 
             col1, col2, col3 = st.columns(3)
             with col1:

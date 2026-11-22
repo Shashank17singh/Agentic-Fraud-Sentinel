@@ -3,9 +3,11 @@ import pytest
 
 from src.data.features import (
     add_behavioral_aggregates,
+    add_frequency_encoding,
     add_missingness_flags,
     add_time_features,
     engineer_features,
+    impute_missing,
 )
 from src.data.preprocessing import encode_categoricals
 
@@ -55,7 +57,7 @@ def test_the_full_feature_pipeline_runs_and_leaves_no_gaps() -> None:
         }
     )
 
-    result = engineer_features(frame)
+    result = impute_missing(add_frequency_encoding(engineer_features(frame)))
 
     assert not result.isnull().any().any()
     for column in ("tx_hour", "id_01_was_missing", "card4_freq", "amt_deviation"):
@@ -89,3 +91,30 @@ def test_the_current_amount_is_never_included_in_its_own_mean() -> None:
 
     assert add_behavioral_aggregates(frame)["card1_mean_amt_1h"].iloc[1] == 10.0
 
+
+def test_later_rows_never_change_earlier_rows_features() -> None:
+    early = pd.DataFrame(
+        {
+            "TransactionDT": [100, 7200, 90000],
+            "TransactionAmt": [10.0, None, 30.0],
+            "card1": [1, 1, 2],
+            "card4": ["visa", None, "visa"],
+            "id_01": [None, 1.0, 2.0],
+        }
+    )
+    late = pd.DataFrame(
+        {
+            "TransactionDT": [900000],
+            "TransactionAmt": [9999.0],
+            "card1": [3],
+            "card4": ["master"],
+            "id_01": [500.0],
+        }
+    )
+
+    alone = engineer_features(early)
+    with_future = engineer_features(pd.concat([early, late], ignore_index=True)).iloc[
+        :3
+    ]
+
+    pd.testing.assert_frame_equal(alone, with_future)

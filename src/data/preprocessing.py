@@ -133,16 +133,18 @@ def apply_smote(X_train, Y_train, sampling_strategy=0.1, random_state=42):
     )
 
 
-def save_processed(X_train, X_test, Y_train, Y_test):
+def save_processed(X_train, X_val, X_test, Y_train, Y_val, Y_test):
     """
-    Save the processed training and testing sets to disk as parquet files.
+    Save the processed training, validation and testing sets as parquet files.
 
     Also saves the fitted label encoders.
     """
     os.makedirs(PROCESSED_DIR, exist_ok=True)
     X_train.to_parquet(f"{PROCESSED_DIR}X_train.parquet", index=False)
+    X_val.to_parquet(f"{PROCESSED_DIR}X_val.parquet", index=False)
     X_test.to_parquet(f"{PROCESSED_DIR}X_test.parquet", index=False)
     Y_train.to_frame().to_parquet(f"{PROCESSED_DIR}Y_train.parquet", index=False)
+    Y_val.to_frame().to_parquet(f"{PROCESSED_DIR}Y_val.parquet", index=False)
     Y_test.to_frame().to_parquet(f"{PROCESSED_DIR}Y_test.parquet", index=False)
     joblib.dump(label_encoders, f"{PROCESSED_DIR}label_encoders.pkl")
     print(f"Saved to {PROCESSED_DIR}")
@@ -161,9 +163,13 @@ def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
         raw_identity_path (str): Path to the identities CSV.
 
     Returns:
-        tuple: (X_train, X_test, Y_train, Y_test)
+        tuple: (X_train, X_val, X_test, Y_train, Y_val, Y_test)
     """
-    from src.data.features import add_frequency_encoding, engineer_features
+    from src.data.features import (
+        add_frequency_encoding,
+        engineer_features,
+        impute_missing,
+    )
 
     print("Loading data...")
     trans_sample = pd.read_csv(raw_transaction_path, nrows=10000)
@@ -213,6 +219,9 @@ def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
 
     train = add_frequency_encoding(train, fit=True)
     test = add_frequency_encoding(test, fit=False)
+    print("\nImputing (medians from train only)...")
+    train = impute_missing(train, fit=True)
+    test = impute_missing(test, fit=False)
     print("\nEncoding categoricals...")
     train, test = encode_categoricals(train, test)
     print("\nSeparating features and target...")
@@ -229,10 +238,17 @@ def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
     print(f"X_train: {len(X_train):,} rows | Y_train: {len(Y_train):,} rows")
     print(f"X_test:  {len(X_test):,} rows  | Y_test:  {len(Y_test):,} rows")
 
+    # The latest 20% of train becomes validation for tuning and the threshold.
+    # It is carved off before SMOTE so it keeps the real fraud rate.
+    split = int(len(X_train) * 0.8)
+    X_val, Y_val = X_train.iloc[split:], Y_train.iloc[split:]
+    X_train, Y_train = X_train.iloc[:split], Y_train.iloc[:split]
+    print(f"X_val:   {len(X_val):,} rows (held out before SMOTE)")
+
     print("\nApplying SMOTE...")
     X_train, Y_train = apply_smote(X_train, Y_train)
 
     print("\nSaving...")
-    save_processed(X_train, X_test, Y_train, Y_test)
+    save_processed(X_train, X_val, X_test, Y_train, Y_val, Y_test)
 
-    return X_train, X_test, Y_train, Y_test
+    return X_train, X_val, X_test, Y_train, Y_val, Y_test

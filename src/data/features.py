@@ -8,7 +8,9 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Master function to apply all feature engineering steps.
 
-    Call this on the full joined dataframe before splitting into train/test sets.
+    Only row-local and backward-looking steps run here, so it is safe on the full
+    dataframe before the split. Frequency encoding and imputation learn from data,
+    so they run after the split, fitted on train only.
 
     Args:
         df (pd.DataFrame): The raw input dataframe.
@@ -19,9 +21,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df = add_time_features(df)
     df = add_missingness_flags(df)
-    df = add_frequency_encoding(df)
     df = add_behavioral_aggregates(df)
-    df = impute_missing(df)
 
     return df
 
@@ -146,7 +146,9 @@ def _window_stats(
     earlier = seen[positions] - seen[starts]
     means = np.full(len(times), np.nan)
     has_earlier = earlier > 0
-    means[has_earlier] = (total[positions] - total[starts])[has_earlier] / earlier[has_earlier]
+    means[has_earlier] = (total[positions] - total[starts])[has_earlier] / earlier[
+        has_earlier
+    ]
     return positions - starts + 1, means
 
 
