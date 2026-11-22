@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import joblib
 import optuna
@@ -9,6 +10,9 @@ from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from xgboost import XGBClassifier
 
 MODEL_DIR = "data/models/"
+
+# Train on the GPU when one is present (Colab T4); the saved model still predicts on CPU.
+XGB_DEVICE = "cuda" if shutil.which("nvidia-smi") else "cpu"
 
 
 def train_random_forest_baseline(X_train, Y_train):
@@ -146,6 +150,7 @@ def train_xgboost_baseline(X_train, Y_train):
         max_depth=6,
         learning_rate=0.1,
         eval_metric="aucpr",
+        device=XGB_DEVICE,
         random_state=42,
         n_jobs=-1,
     )
@@ -191,6 +196,7 @@ def tune_xgboost(X_train, Y_train, X_val, Y_val, n_trials=50):
     """
     fixed = {
         "eval_metric": "aucpr",
+        "device": XGB_DEVICE,
         "enable_categorical": True,
         "random_state": 42,
         "n_jobs": -1,
