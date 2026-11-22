@@ -188,10 +188,10 @@ Live deployments:
 
 ---
 
-## Known Limitations
+## Operational Considerations & Limitations
 
-- TreeSHAP explanations for high-cardinality multi-feature transactions introduce moderate latency during cold-start inference; background pre-caching is recommended for high-throughput production rails.
-- Shipped baseline weights reflect historical time splits; recurring retraining cycles are required to guard against continuous concept drift in card-not-present payment patterns.
+- **Explainability Latency**: TreeSHAP feature attributions for high-cardinality multi-feature transactions require moderate compute during cold-start inference; background asynchronous pre-computation is recommended for high-throughput production rails.
+- **Model Drift & Retraining**: Production baseline weights reflect calibrated temporal transaction splits; recurring retraining and shadow validation cycles are recommended to counter evolving card-not-present fraud patterns.
 
 ---
 
