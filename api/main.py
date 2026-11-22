@@ -10,7 +10,7 @@ import joblib
 from fastapi import FastAPI, HTTPException
 
 # pyrefly: ignore [missing-import]
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -23,6 +23,8 @@ else:
 
 
 from src.agents.graph import build_fraud_graph
+from src.chat import assistant
+from src.news import classifier as news_classifier
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +38,7 @@ print("Building fraud detection graph..")
 fraud_graph = build_fraud_graph()
 print("Graph ready...")
 bundle = joblib.load(os.path.join(DATA_DIR, "models", "xgboost_production.pkl"))
+news_bundle = joblib.load(os.path.join(DATA_DIR, "models", "news_classifier.pkl"))
 
 
 class TransactionRequest(BaseModel):
@@ -151,3 +154,27 @@ def get_metrics():
         "precision": metrics["precision"],
         "recall": metrics["recall"],
     }
+
+
+class TextRequest(BaseModel):
+    """Input schema for the news screen and the assistant."""
+
+    text: str = Field(min_length=1, max_length=20_000)
+
+
+@app.post("/news")
+def screen_news(request: TextRequest):
+    """Give a preliminary fake or real label for a news article, with uncertainty."""
+    return news_classifier.screen(news_bundle, request.text)
+
+
+@app.get("/news/metrics")
+def news_metrics():
+    """Return the held-out metrics saved with the news classifier."""
+    return news_bundle["metrics"]
+
+
+@app.post("/chat")
+def chat(request: TextRequest):
+    """Answer a fraud or fake-news question from cited sources."""
+    return assistant.answer(request.text)

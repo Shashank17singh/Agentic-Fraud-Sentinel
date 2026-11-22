@@ -55,6 +55,8 @@ The platform processes the IEEE-CIS Dataset (590k transactions) through a multi-
 | **Agentic Decision Core** | XGBoost classifier tuned via Optuna. Inference requests are routed intelligently via LangGraph agents to determine whether transactions are approved, declined, or escalated to human review. |
 | **Interpretability Layer** | TreeSHAP (SHapley Additive exPlanations) generates per-prediction feature attribution for transparent audit trails. |
 | **Dual Serving Stack** | Containerized FastAPI backend (`/predict`) powered by LangGraph, paired with a real-time Streamlit operations dashboard. |
+| **News Screening** | `POST /news` gives a preliminary *likely fake*, *likely real* or *uncertain* label from TF-IDF and logistic regression trained on the ISOT Fake and Real News dataset. Texts under 30 words are not scored. It judges writing style only and does not check facts. |
+| **Fraud and News Assistant** | `POST /chat` answers questions on card fraud and fake news from 29 passages taken from FactCheck.org, UC Berkeley Library, USAGov and Wikipedia, with numbered citations. When no passage matches it asks the user to rephrase instead of guessing. With `GROQ_API_KEY` set, Groq (`openai/gpt-oss-120b` by default, override with `GROQ_MODEL`) writes the reply from the retrieved passages only; without a key, or if the call fails, it returns the passages themselves. |
 
 ---
 
@@ -73,6 +75,14 @@ All rows are scored once on the last 20% of transactions by time (118,108 rows).
 - 214 high-cardinality features with >50% missingness are tracked via explicit indicators.
 - `TransactionAmt` alone provides weak discrimination.
 
+**News classifier** (ISOT, 38,010 articles after removing duplicates and texts under 30 words; stratified 80/20 split):
+
+| Accuracy | F1 | AUC-ROC | Scored as uncertain | Accuracy outside the uncertain band |
+| :------: | :-: | :-----: | :-----------------: | :---------------------------------: |
+| 0.9828 | 0.9804 | 0.9984 | 3.1% | 0.9933 |
+
+Every real ISOT article comes from Reuters, so the Reuters byline, image credits, links and handles are stripped before training to stop the model learning the publisher. The scores are still in-dataset; expect lower accuracy on news from other outlets and periods. Retrain with `python -m src.news.classifier data/raw/isot` after downloading the [dataset](https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset) into `data/raw/isot/`.
+
 ---
 
 ## Technology Stack
@@ -85,6 +95,7 @@ All rows are scored once on the last 20% of transactions by time (118,108 rows).
 | **Hyperparameter Tuning** | `Optuna`, TimeSeriesSplit Cross-Validation |
 | **Interpretability** | `SHAP` |
 | **Agentic Workflow** | `LangGraph`, `LangChain` |
+| **Text & Retrieval** | `scikit-learn` TF-IDF, logistic regression, Groq API (optional) |
 | **API & Serving** | `FastAPI`, `uvicorn` |
 | **Frontend & Analytics** | `Streamlit`, `Matplotlib`, `Plotly` |
 | **Testing & CI** | `pytest`, `ruff`, GitHub Actions |
@@ -97,7 +108,7 @@ All rows are scored once on the last 20% of transactions by time (118,108 rows).
 ```
 Agentic-Fraud-Sentinel/
 ├── api/
-│   └── main.py               # FastAPI service exposing /health and /predict
+│   └── main.py               # FastAPI service: /health, /predict, /metrics, /news, /chat
 ├── dashboard/
 │   └── app.py                # Streamlit monitoring and investigation UI
 ├── data/
@@ -110,11 +121,13 @@ Agentic-Fraud-Sentinel/
 │   └── evaluation.ipynb      # Precision-Recall & ROC evaluation
 ├── src/
 │   ├── agents/               # LangGraph workflow, state, and decision nodes
+│   ├── chat/                 # Cited retrieval assistant and its source passages
 │   ├── data/                 # Feature extraction and preprocessing
 │   ├── explainability/       # TreeSHAP explainer engine
-│   └── models/               # Model training, evaluation, and serialization
+│   ├── models/               # Model training, evaluation, and serialization
+│   └── news/                 # Fake-news screening classifier
 ├── tests/
-│   └── test_agents.py        # Automated test suite
+│   └── test_*.py             # Automated test suite
 ├── Dockerfile                # Container configuration
 ├── requirements.txt          # Production dependencies
 └── README.md
@@ -150,6 +163,8 @@ Start the FastAPI inference backend:
 ```bash
 uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+To let Groq write the assistant's replies, set `GROQ_API_KEY` in the environment before starting the API. Never commit the key.
 
 In a separate terminal, launch the Streamlit operations dashboard:
 

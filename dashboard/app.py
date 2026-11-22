@@ -430,3 +430,45 @@ if not df.empty:
 
 
 st.divider()
+st.subheader("News Screening")
+st.caption(
+    "Preliminary fake or real label from writing style (TF-IDF and logistic "
+    "regression on ISOT). It does not check facts."
+)
+article = st.text_area("Paste a news article (at least 30 words)", height=160)
+if st.button("Screen article") and article.strip():
+    try:
+        response = requests.post(f"{API_URL}/news", json={"text": article}, timeout=30)
+        if response.status_code == 200:
+            result = response.json()
+            col1, col2 = st.columns(2)
+            col1.metric("Label", result["label"].upper())
+            prob = result["fake_probability"]
+            col2.metric("Fake probability", "n/a" if prob is None else f"{prob:.2f}")
+            st.info(result["note"])
+        else:
+            st.error(f"API error: {response.status_code}")
+    except requests.exceptions.ConnectionError:
+        st.error("Cannot connect to API.")
+
+st.divider()
+st.subheader("Ask the Assistant")
+st.caption(
+    "Answers questions on card fraud and fake news from a small set of cited "
+    "sources, and asks you to rephrase when none of them fit."
+)
+question = st.text_input(
+    "Your question", placeholder="What should I do if my card is stolen?"
+)
+if st.button("Ask") and question.strip():
+    try:
+        response = requests.post(f"{API_URL}/chat", json={"text": question}, timeout=30)
+        if response.status_code == 200:
+            reply = response.json()
+            st.write(reply["answer"])
+            for source in reply["sources"]:
+                st.markdown(f"[{source['n']}] [{source['title']}]({source['url']})")
+        else:
+            st.error(f"API error: {response.status_code}")
+    except requests.exceptions.ConnectionError:
+        st.error("Cannot connect to API.")
