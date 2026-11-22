@@ -62,11 +62,11 @@ The platform processes the IEEE-CIS Dataset (590k transactions) through a multi-
 
 | Optimization Stage | AUC-ROC | AUC-PR | Precision | Recall | F1 Score |
 | :----------------- | :-----: | :----: | :-------: | :----: | :------: |
-| **XGBoost Baseline** | 0.9012 | 0.5246 | 0.8007 | 0.3253 | 0.4626 |
-| **Optuna Tuned XGBoost** | 0.9070 | 0.5758 | 0.8335 | 0.3942 | 0.5352 |
-| **Optimal Threshold** (0.216) | 0.9070 | 0.5758 | 0.6990 | 0.4845 | 0.5723 |
+| **XGBoost Baseline** | 0.8925 | 0.4956 | 0.7917 | 0.3105 | 0.4461 |
+| **Optuna Tuned XGBoost** | 0.8974 | 0.5174 | 0.8100 | 0.3295 | 0.4684 |
+| **Validation Threshold** (0.1885) | 0.8974 | 0.5174 | 0.5774 | 0.4508 | 0.5063 |
 
-These numbers come from an earlier version of the pipeline. It fitted imputation on the full dataset and chose the 0.216 threshold on the test set, so the last row is optimistic. The pipeline now fits on train only and picks the threshold on a held-out validation slice. [`notebooks/colab_retrain.ipynb`](notebooks/colab_retrain.ipynb) retrains with it, and this table will be replaced with the new results.
+All rows are scored once on the last 20% of transactions by time (118,108 rows). Imputation, frequency maps, Optuna tuning and the threshold all use training data only: the newest 20% of the training period is held out as validation before SMOTE. [`notebooks/colab_retrain.ipynb`](notebooks/colab_retrain.ipynb) reproduces the run, and every run is logged in [`model_log.json`](notebooks/data/model_results/model_log.json).
 
 **Exploratory Data Analysis (EDA) Highlights:**
 - Fraud rate is non-stationary, varying between 2.0% and 4.8% across the 185-day transaction window.

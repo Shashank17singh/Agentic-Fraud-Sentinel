@@ -141,14 +141,14 @@ def get_metrics():
     Retrieve basic model metadata and performance metrics.
 
     Returns:
-        dict: Pre-configured model evaluation metrics.
+        dict: The test-set metrics saved with the production model.
     """
-
+    metrics = bundle["metrics"]
     return {
-        "model": "xgboost_tuned",
-        "threshold": 0.2161,
-        "auc_roc": 0.9070,
-        "auc_pr": 0.5758,
-        "precision": 0.8335,
-        "recall": 0.3942,
+        "model": metrics["model_name"],
+        "threshold": bundle["threshold"],
+        "auc_roc": metrics["auc_roc"],
+        "auc_pr": metrics["auc_pr"],
+        "precision": metrics["precision"],
+        "recall": metrics["recall"],
     }

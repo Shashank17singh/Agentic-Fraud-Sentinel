@@ -28,5 +28,50 @@
     "false_positives": 848,
     "true_negatives": 113196,
     "false_negatives": 2097
+  },
+  {
+    "model_name": "xgb_baseline",
+    "timestamp": "2026-11-22T21:57:51.967935+00:00",
+    "threshold": 0.5,
+    "auc_roc": 0.8925,
+    "auc_pr": 0.4956,
+    "precision": 0.7917,
+    "recall": 0.3105,
+    "f1": 0.4461,
+    "false_positive_rate": 0.0029,
+    "true_positives": 1262,
+    "false_positives": 332,
+    "true_negatives": 113712,
+    "false_negatives": 2802
+  },
+  {
+    "model_name": "xgb_tuned",
+    "timestamp": "2026-11-22T22:31:02.657165+00:00",
+    "threshold": 0.5,
+    "auc_roc": 0.8974,
+    "auc_pr": 0.5174,
+    "precision": 0.81,
+    "recall": 0.3295,
+    "f1": 0.4684,
+    "false_positive_rate": 0.0028,
+    "true_positives": 1339,
+    "false_positives": 314,
+    "true_negatives": 113730,
+    "false_negatives": 2725
+  },
+  {
+    "model_name": "xgb_tuned_val_threshold",
+    "timestamp": "2026-11-22T22:31:04.743067+00:00",
+    "threshold": 0.1885489523410797,
+    "auc_roc": 0.8974,
+    "auc_pr": 0.5174,
+    "precision": 0.5774,
+    "recall": 0.4508,
+    "f1": 0.5063,
+    "false_positive_rate": 0.0118,
+    "true_positives": 1832,
+    "false_positives": 1341,
+    "true_negatives": 112703,
+    "false_negatives": 2232
   }
 ]

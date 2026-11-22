@@ -199,19 +199,37 @@ def load_log():
 
 df = load_log()
 
-col1, col2, col3, col4 = st.columns(4)
+if not df.empty:
+    # The last run is the production model; compare it with the latest baseline run.
+    prod = df.iloc[-1]
+    baselines = df[df["model_name"].str.contains("baseline")]
+    base = baselines.iloc[-1] if not baselines.empty else prod
 
-with col1:
-    st.metric(label="AUC-ROC", value="0.9070", delta="+0.0058 vs baseline")
-
-with col2:
-    st.metric(label="AUC-PR", value="0.5758", delta="0.0512 vs baseline")
-
-with col3:
-    st.metric(label="Recall", value="48.45%", delta="+16.92 vs baseline")
-
-with col4:
-    st.metric(label="Threshold", value="0.2161", delta="optimized from 0.5")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric(
+            label="AUC-ROC",
+            value=f"{prod['auc_roc']:.4f}",
+            delta=f"{prod['auc_roc'] - base['auc_roc']:+.4f} vs baseline",
+        )
+    with col2:
+        st.metric(
+            label="AUC-PR",
+            value=f"{prod['auc_pr']:.4f}",
+            delta=f"{prod['auc_pr'] - base['auc_pr']:+.4f} vs baseline",
+        )
+    with col3:
+        st.metric(
+            label="Recall",
+            value=f"{prod['recall']:.2%}",
+            delta=f"{(prod['recall'] - base['recall']) * 100:+.2f} pts vs baseline",
+        )
+    with col4:
+        st.metric(
+            label="Threshold",
+            value=f"{prod['threshold']:.4f}",
+            delta="chosen on validation",
+        )
 
 
 st.divider()
