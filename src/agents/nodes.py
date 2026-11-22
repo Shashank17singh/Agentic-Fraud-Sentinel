@@ -30,6 +30,19 @@ EXPLAINER = joblib.load(EXPLAINER_PATH)
 
 FEATURE_COLS = MODEL.get_booster().feature_names
 
+# Below this share of numeric model features the score rests mostly on filled-in
+# zeros, so the policy sends the case to a human instead of deciding.
+MIN_FEATURE_COVERAGE = 0.5
+
+
+def _supplied_feature_count(tx_data: dict) -> int:
+    """Count model features sent as numbers; strings and gaps are filled with 0."""
+    return sum(
+        isinstance(tx_data.get(col), (int, float))
+        and not isinstance(tx_data.get(col), bool)
+        for col in FEATURE_COLS
+    )
+
 
 def _encode_features(tx_data: dict) -> dict:
 
@@ -141,17 +154,28 @@ def policy_node(state: FraudDetectionState) -> dict:
     high risk -> deny+ flag for human review
     medium risk -> flag for human review , dont auto deny
     low risk -> approve automatically
+    too few features supplied -> flag for human review, whatever the score
     """
 
     risk_level = state["risk_level"]
     fraud_prob = state["fraud_probability"]
+    supplied = _supplied_feature_count(state["transaction_data"])
 
-    if risk_level == "high":
+    if supplied < MIN_FEATURE_COVERAGE * len(FEATURE_COLS):
+        decision = "flag"
+        requires_human = True
+        reasoning = (
+            f"Only {supplied} of {len(FEATURE_COLS)} model features were supplied, "
+            f"so the fraud probability {fraud_prob:.4f} is unreliable. "
+            f"Human review required."
+        )
+
+    elif risk_level == "high":
         decision = "deny"
         requires_human = True
         reasoning = (
-            f"Transaction denied. Fraud probability {fraud_prob:.4f}"
-            f"exceeds threshold  {THRESHOLD:.4f}. Flagged for human review."
+            f"Transaction denied. Fraud probability {fraud_prob:.4f} "
+            f"exceeds threshold {THRESHOLD:.4f}. Flagged for human review."
         )
 
     elif risk_level == "medium":

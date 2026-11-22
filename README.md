@@ -71,7 +71,7 @@ All rows are scored once on the last 20% of transactions by time (118,108 rows).
 **Exploratory Data Analysis (EDA) Highlights:**
 - Fraud rate is non-stationary, varying between 2.0% and 4.8% across the 185-day transaction window.
 - 214 high-cardinality features with >50% missingness are tracked via explicit indicators.
-- `TransactionAmt` alone provides weak discrimination; 4 out of 6 engineered behavioral velocity features dominate the feature attribution hierarchy.
+- `TransactionAmt` alone provides weak discrimination.
 
 ---
 

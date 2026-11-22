@@ -36,7 +36,6 @@ print("Building fraud detection graph..")
 fraud_graph = build_fraud_graph()
 print("Graph ready...")
 bundle = joblib.load(os.path.join(DATA_DIR, "models", "xgboost_production.pkl"))
-FEATURE_COLS = bundle["model"].get_booster().feature_names
 
 
 class TransactionRequest(BaseModel):
@@ -93,11 +92,11 @@ def predict(request: TransactionRequest):
         PredictionResponse: Structured fraud decision and explanation.
     """
     try:
-        feature_row = {col: request.features.get(col, 0) for col in FEATURE_COLS}
-
+        # Pass features as sent: the nodes fill gaps for the model, and the policy
+        # needs to see how many were actually supplied.
         initial_state = {
             "transaction_id": request.transaction_id,
-            "transaction_data": feature_row,
+            "transaction_data": request.features,
             "fraud_probability": None,
             "risk_level": None,
             "shap_explanation": None,
