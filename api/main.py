@@ -1,8 +1,12 @@
 # pyrefly: ignore [missing-import]
+import json
 import logging
 import os
+import sqlite3
 import sys
-from typing import Any
+import time
+import uuid
+from typing import Any, Literal
 
 import joblib
 
@@ -22,10 +26,16 @@ else:
     DATA_DIR = os.path.join(BASE_DIR, "notebooks", "data")
 
 
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
+
 from src.agents.graph import build_fraud_graph
+from src.agents.nodes import report_node
 from src.chat import assistant
+from src.monitoring import Monitor
 from src.news import classifier as news_classifier
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -35,10 +45,30 @@ app = FastAPI(
 )
 
 print("Building fraud detection graph..")
-fraud_graph = build_fraud_graph()
+# The checkpointer lets a run pause before human review and resume after an
+# analyst decides. With CHECKPOINT_DB_PATH set, paused runs are kept in SQLite and
+# survive a restart; otherwise they live in memory.
+CHECKPOINT_DB_PATH = os.environ.get("CHECKPOINT_DB_PATH")
+if CHECKPOINT_DB_PATH:
+    os.makedirs(os.path.dirname(CHECKPOINT_DB_PATH) or ".", exist_ok=True)
+    checkpointer = SqliteSaver(
+        sqlite3.connect(CHECKPOINT_DB_PATH, check_same_thread=False)
+    )
+else:
+    checkpointer = InMemorySaver()
+fraud_graph = build_fraud_graph(checkpointer)
 print("Graph ready...")
 bundle = joblib.load(os.path.join(DATA_DIR, "models", "xgboost_production.pkl"))
 news_bundle = joblib.load(os.path.join(DATA_DIR, "models", "news_classifier.pkl"))
+MODEL_VERSION = bundle["metrics"]["model_name"]
+
+with open(
+    os.path.join(DATA_DIR, "models", "drift_reference.json"), encoding="utf-8"
+) as f:
+    drift_reference = json.load(f)
+# Set MONITOR_LOG_PATH to append every prediction and review to a JSON-lines file,
+# which also rebuilds the stats and the review queue after a restart.
+monitor = Monitor(drift_reference, os.environ.get("MONITOR_LOG_PATH"))
 
 
 class TransactionRequest(BaseModel):
@@ -94,6 +124,7 @@ def predict(request: TransactionRequest):
     Returns:
         PredictionResponse: Structured fraud decision and explanation.
     """
+    start = time.perf_counter()
     try:
         # Pass features as sent: the nodes fill gaps for the model, and the policy
         # needs to see how many were actually supplied.
@@ -107,16 +138,31 @@ def predict(request: TransactionRequest):
             "decision": None,
             "policy_reasoning": None,
             "requires_human": None,
+            "analyst_decision": None,
+            "analyst_note": None,
             "final_report": None,
             "processing_errors": [],
         }
 
-        result = fraud_graph.invoke(initial_state)
-        report = result["final_report"]
+        # One thread per request, so a repeated transaction ID never resumes an
+        # older run.
+        thread_id = f"{request.transaction_id}-{uuid.uuid4().hex[:8]}"
+        config = {"configurable": {"thread_id": thread_id}}
+        result = fraud_graph.invoke(initial_state, config)
+
+        if fraud_graph.get_state(config).next == ("human_review",):
+            # Paused for an analyst: answer now from the state so far, and keep
+            # the checkpoint so POST /reviews/{id} can resume the run.
+            report = report_node(result)["final_report"]
+            report["policy_reasoning"] += "\n[AWAITING ANALYST REVIEW]"
+        else:
+            report = result["final_report"]
+            checkpointer.delete_thread(thread_id)
 
         if report is None:
             raise HTTPException(status_code=500, detail="graph produced no report")
 
+        _log_prediction(request, start, report=report, thread_id=thread_id)
         return PredictionResponse(
             transaction_id=report["transaction_id"],
             fraud_probability=report["fraud_probability"],
@@ -129,12 +175,83 @@ def predict(request: TransactionRequest):
             errors=report["errors"],
         )
 
-    except HTTPException:
+    except HTTPException as e:
+        _log_prediction(request, start, error=str(e.detail))
         raise
 
     except Exception as e:
         logger.exception("Prediction failed")
+        _log_prediction(request, start, error=type(e).__name__)
         raise HTTPException(status_code=500, detail="Prediction failed.") from e
+
+
+def _log_prediction(
+    request: TransactionRequest, start: float, report=None, error=None, thread_id=None
+):
+    """Record one /predict call in the monitor and the service log."""
+    fields = {
+        "transaction_id": request.transaction_id,
+        "latency_ms": round((time.perf_counter() - start) * 1000, 1),
+        "model_version": MODEL_VERSION,
+        "threshold": bundle["threshold"],
+        "error": error,
+    }
+    if report is not None:
+        fields.update(
+            fraud_probability=report["fraud_probability"],
+            decision=report["decision"],
+            requires_human=report["requires_human"],
+            thread_id=thread_id,
+            features=request.features,
+        )
+    logger.info("prediction %s", json.dumps(monitor.record(**fields)))
+
+
+@app.get("/stats")
+def get_stats():
+    """Live service stats: volume, latency, decision rates, drift, review queue, alerts."""
+    return monitor.stats()
+
+
+@app.get("/reviews")
+def list_reviews():
+    """Transactions waiting for an analyst decision."""
+    return monitor.pending_reviews()
+
+
+class ReviewAction(BaseModel):
+    """An analyst's decision on a queued transaction."""
+
+    action: Literal["approve", "deny"]
+    note: str = Field(default="", max_length=1000)
+
+
+@app.post("/reviews/{transaction_id}")
+def resolve_review(transaction_id: str, review: ReviewAction):
+    """
+    Approve or deny a queued transaction. The paused graph run resumes with the
+    analyst's decision and returns its final report.
+    """
+    try:
+        case = monitor.pending(transaction_id)
+    except KeyError as e:
+        raise HTTPException(
+            status_code=404, detail="No pending review for this ID."
+        ) from e
+
+    final_report = None
+    config = {"configurable": {"thread_id": case["thread_id"]}}
+    if case["thread_id"] and fraud_graph.get_state(config).next == ("human_review",):
+        fraud_graph.update_state(
+            config, {"analyst_decision": review.action, "analyst_note": review.note}
+        )
+        final_report = fraud_graph.invoke(None, config)["final_report"]
+        checkpointer.delete_thread(case["thread_id"])
+
+    # final_report is None when the checkpoint was lost in a restart; the
+    # decision is still recorded.
+    resolution = monitor.resolve(transaction_id, review.action, review.note)
+    return {**resolution, "final_report": final_report}
 
 
 @app.get("/metrics")

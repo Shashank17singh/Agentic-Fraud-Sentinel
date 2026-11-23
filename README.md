@@ -30,7 +30,7 @@ graph TD
     M --> N
 ```
 
-A transaction goes through four LangGraph nodes. The risk scorer gets the fraud probability from XGBoost. The explainer adds the top SHAP contributions. The policy node then applies these rules:
+A transaction goes through LangGraph nodes that share one typed state. The risk scorer gets the fraud probability from XGBoost. The explainer adds the top SHAP contributions, each with its value, size and direction. The policy node then applies these rules, and the graph routes the case to human review or auto-approval before a report node writes the final record:
 
 | Condition | Decision | Human review |
 | :-------- | :------- | :----------: |
@@ -39,18 +39,21 @@ A transaction goes through four LangGraph nodes. The risk scorer gets the fraud 
 | Probability between half the threshold and the threshold | flag | yes |
 | Probability below half the threshold | approve | no |
 
-The first rule exists because missing features are filled with 0 before scoring, so a request with only a handful of fields gets a score that means little.
+The first rule exists because missing features are filled with 0 before scoring, so a request with only a handful of fields gets a score that means little. The policy is kept apart from training: `POLICY_MIN_FEATURE_COVERAGE` (default 0.5) and `POLICY_MEDIUM_RISK_FRACTION` (default 0.5) change the rules without retraining.
 
 ## Features
 
 | Feature | What it does |
 | :------ | :----------- |
-| Fraud model | XGBoost on 590,540 IEEE-CIS transactions, split by time so the test set is the newest 20%. Features include hour of day, missing-value flags, frequency encodings and per-card transaction counts and amounts over the last hour and day. SMOTE raises the fraud share in training from 3.4% to 9.1%. Optuna tunes the model on a validation slice, and the decision threshold is picked on that slice too. |
-| Explanations | TreeSHAP gives the features that pushed each score up or down. |
+| Fraud model | XGBoost on 590,540 IEEE-CIS transactions, split by time so the test set is the newest 20%. Features include hour of day, missing-value flags, frequency encodings and per-card transaction counts and amounts over the last hour and day. The code also computes the seconds since the same card's previous transaction, but the shipped model was trained before that feature existed and will use it after the next retrain. SMOTE raises the fraud share in training from 3.4% to 9.1%. Optuna tunes the model on a validation slice, and the decision threshold is picked on that slice too. |
+| Explanations | TreeSHAP gives the features that pushed each score up or down, with the feature value, SHAP contribution and direction. |
 | Decision workflow | LangGraph routes each transaction to approve, deny or human review using the rules above. |
+| Review queue | A case that needs a human pauses the LangGraph run before the human review node, and its state is saved by a checkpointer. `/predict` answers straight away with the case marked as awaiting review. When an analyst approves or denies it through `POST /reviews/{id}`, the decision is written into the saved state and the run resumes through human review and the report node, which returns the final report. The time each case waited is recorded. |
+| Monitoring | Each prediction is logged with its ID, latency, probability, decision and model version. `GET /stats` reports request volume, error rate, p50/p95/p99 latency, decision rates, the review queue, drift (PSI against the training period) for the ten raw numeric fields that rank highest by SHAP and for the model's scores, and alerts when any of these crosses a limit. With `MONITOR_LOG_PATH` set, every prediction and review goes to a JSON-lines file, and the stats and review queue are rebuilt from it after a restart. Analyst decisions give the share of reviewed cases that were fraud. |
+| Experiment log | Every evaluation is appended to `model_log.json` with its metrics, parameters, dataset, timestamp and Git commit. |
 | News screening | `POST /news` labels an article *likely fake*, *likely real* or *uncertain* with TF-IDF and logistic regression trained on the ISOT Fake and Real News dataset. Scores between 0.35 and 0.65 are reported as uncertain, and texts under 30 words are not scored. It judges writing style only and does not check facts. |
 | Fraud and news assistant | `POST /chat` answers from 29 passages taken from FactCheck.org, UC Berkeley Library, USAGov and Wikipedia, and cites them as [1], [2]. When no passage matches, it asks the user to rephrase. If `GROQ_API_KEY` is set, Groq (`openai/gpt-oss-120b` by default, change it with `GROQ_MODEL`) writes the reply from the retrieved passages only. Without a key, or if the call fails, it returns the passages. |
-| Dashboard | Streamlit page with model metrics, a live transaction tester, news screening and the assistant. |
+| Dashboard | Streamlit page with model metrics, a live transaction tester, news screening, the assistant, live monitoring and the review queue. |
 
 ## Results
 
@@ -61,6 +64,8 @@ The first rule exists because missing features are filled with 0 before scoring,
 | XGBoost baseline | 0.8925 | 0.4956 | 0.7917 | 0.3105 | 0.4461 |
 | Optuna-tuned XGBoost | 0.8974 | 0.5174 | 0.8100 | 0.3295 | 0.4684 |
 | Tuned, threshold 0.1885 from validation | 0.8974 | 0.5174 | 0.5774 | 0.4508 | 0.5063 |
+
+The retrain notebook also compares SMOTE with XGBoost class weighting (`scale_pos_weight`) and XGBoost with LightGBM. Those comparisons have not been run yet, so they have no numbers here.
 
 Every row is scored once on the newest 20% of transactions (118,108 rows). Imputation, frequency maps, tuning and the threshold use training data only, and the newest 20% of the training period is held out as validation before SMOTE. [`notebooks/colab_retrain.ipynb`](notebooks/colab_retrain.ipynb) reproduces the run, and each run is logged in [`model_log.json`](notebooks/data/model_results/model_log.json).
 
@@ -87,10 +92,10 @@ Every real ISOT article comes from Reuters, so the Reuters byline, image credits
 | :--- | :---- |
 | Data | `pandas`, `numpy`, `scikit-learn` |
 | Class imbalance | `imbalanced-learn` (SMOTE) |
-| Models | `XGBoost`, `scikit-learn` logistic regression |
+| Models | `XGBoost`, `LightGBM` (comparison), `scikit-learn` logistic regression |
 | Tuning | `Optuna` on a time-ordered validation slice |
 | Explanations | `SHAP` |
-| Workflow | `LangGraph` |
+| Workflow | `LangGraph`, SQLite checkpoints for paused runs |
 | Text and retrieval | `scikit-learn` TF-IDF, Groq API (optional) |
 | API | `FastAPI`, `uvicorn` |
 | Dashboard | `Streamlit`, `Plotly`, `Matplotlib` |
@@ -104,6 +109,9 @@ Every real ISOT article comes from Reuters, so the Reuters byline, image credits
 | GET | `/health` | Service status |
 | POST | `/predict` | Fraud probability, risk level, decision, SHAP explanation and policy reasoning |
 | GET | `/metrics` | Test metrics and threshold of the shipped fraud model |
+| GET | `/stats` | Live volume, latency, decision rates, drift, review queue and alerts |
+| GET | `/reviews` | Cases waiting for an analyst |
+| POST | `/reviews/{transaction_id}` | Record an analyst's approve or deny, resume the paused run and return its final report |
 | POST | `/news` | News label, fake probability and a note |
 | GET | `/news/metrics` | Test metrics of the news classifier |
 | POST | `/chat` | Answer, cited sources, topic and whether Groq wrote it |
@@ -134,6 +142,7 @@ Agentic-Fraud-Sentinel/
 │   ├── data/                 # Features and preprocessing
 │   ├── explainability/       # TreeSHAP helpers
 │   ├── models/               # Training and evaluation
+│   ├── monitoring.py         # Request log, stats, drift, review queue
 │   └── news/                 # News classifier
 ├── tests/                    # pytest suite
 ├── Dockerfile
@@ -161,7 +170,18 @@ Start the API:
 uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-To let Groq write the assistant's replies, set `GROQ_API_KEY` in the environment before starting the API. Keep the key out of git.
+Optional environment variables:
+
+| Variable | Effect |
+| :------- | :----- |
+| `GROQ_API_KEY` | Lets Groq write the assistant's replies. Keep it out of git. |
+| `GROQ_MODEL` | Groq model, default `openai/gpt-oss-120b` |
+| `POLICY_MIN_FEATURE_COVERAGE` | Share of model features a request must supply before the policy decides, default 0.5 |
+| `POLICY_MEDIUM_RISK_FRACTION` | Fraction of the threshold where medium risk starts, default 0.5 |
+| `CHECKPOINT_DB_PATH` | Keep paused review runs in this SQLite file, so they can still resume after a restart. Without it they live in memory. |
+| `MONITOR_LOG_PATH` | Append every prediction and review to this JSON-lines file, and rebuild stats from it on start |
+
+The input drift references in `notebooks/data/models/drift_reference.json` come from `python -m src.monitoring data/raw/train_transaction.csv`. The retrain notebook adds the reference for model scores.
 
 Start the dashboard in a second terminal:
 
@@ -177,7 +197,7 @@ ruff check .
 ruff format --check .
 ```
 
-CI runs the same three commands on Python 3.10 for every push.
+CI runs the same three commands on Python 3.10 for every push. A second job builds the Docker image, starts it and calls `/health`, `/predict` and `/stats` inside it. Requirements are pinned to exact versions.
 
 ## Deployment
 
@@ -194,6 +214,10 @@ The image holds the API and the shipped models. The dashboard is deployed separa
 - Fraud patterns drift. The model needs periodic retraining and checking against recent transactions.
 - The news classifier only learns writing style from one dataset. A false story written in wire-service style can be labelled likely real.
 - The assistant knows only its 29 passages. Without Groq, an off-topic question that shares a common word with a passage can still get an answer from that passage.
+- Stats cover the last 1,000 requests. They survive a restart only with `MONITOR_LOG_PATH` on a disk that persists. Render's free disk is wiped on each deploy, so the live stats reset there.
+- Score drift appears only after the retrain notebook has saved its reference. Fraud precision and recall in production need labels, and the only ones the service sees are analyst decisions.
+- Without `CHECKPOINT_DB_PATH`, paused runs live in memory. After a restart the analyst's decision is still recorded, but the run cannot resume, so no final report comes back. On Render's free tier even the SQLite file is wiped on each deploy.
+- The alert limits are common defaults, not tuned on real traffic.
 - The Docker container runs as root.
 
 ## License

@@ -13,7 +13,9 @@ class FraudDetectionState(TypedDict):
     fraud_probability: float | None
     risk_level: str | None
 
-    shap_probability: dict | None
+    shap_explanation: dict | None
+    analyst_decision: str | None
+    analyst_note: str | None
     explanation_text: str | None
 
     decision: str | None

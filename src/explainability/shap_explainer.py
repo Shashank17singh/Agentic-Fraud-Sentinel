@@ -71,7 +71,8 @@ def explain_single_prediction(explainer, X_row: pd.DataFrame, top_n=10) -> dict:
         "base_value": float,        # average model output
         "prediction": float,        # this transaction's score
         "top_features": [
-            {"feature": str, "shap_value": float, "actual_value": float},
+            {"feature": str, "shap_value": float, "actual_value": float,
+             "direction": "increases fraud risk" or "decreases fraud risk"},
             ...
         ]
     }
@@ -93,6 +94,9 @@ def explain_single_prediction(explainer, X_row: pd.DataFrame, top_n=10) -> dict:
                 round(float(actual_values[i]), 4)
                 if isinstance(actual_values[i], (int, float))
                 else actual_values[i]
+            ),
+            "direction": (
+                "increases fraud risk" if shap_vals[i] > 0 else "decreases fraud risk"
             ),
         }
         for i in range(len(feature_names))

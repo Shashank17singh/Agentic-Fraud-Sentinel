@@ -182,6 +182,12 @@ def add_behavioral_aggregates(df: pd.DataFrame) -> DataFrame:
 
     df["amt_deviation"] = df["TransactionAmt"] - df["card1_mean_amt_24h"]
 
+    # Seconds since the same card's previous transaction; NaN for its first one.
+    gaps = np.full(len(df), np.nan)
+    for rows in card_rows:
+        gaps[rows[1:]] = np.diff(times[rows])
+    df["card1_secs_since_prev"] = gaps
+
     return df
 
 

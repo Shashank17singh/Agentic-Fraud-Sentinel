@@ -15,7 +15,12 @@ def data() -> tuple[pd.DataFrame, pd.Series]:
 
 
 @pytest.mark.parametrize(
-    "trainer", [train.train_xgboost_baseline, train.train_lightgbm_baseline]
+    "trainer",
+    [
+        train.train_xgboost_baseline,
+        train.train_xgboost_weighted,
+        train.train_lightgbm_baseline,
+    ],
 )
 def test_baselines_learn_the_signal(
     trainer, data: tuple[pd.DataFrame, pd.Series]
@@ -46,3 +51,23 @@ def test_threshold_is_the_best_f1_cut_on_the_labels_given() -> None:
     probs = np.array([0.1, 0.2, 0.6, 0.7, 0.9])
 
     assert evaluate.select_threshold(labels, probs) == pytest.approx(0.7)
+
+
+def test_runs_are_logged_with_commit_dataset_and_params(data) -> None:
+    features, labels = data
+    model = train.train_xgboost_baseline(features, labels)
+
+    result = evaluate.evaluate_model(model, features, labels, model_name="m")
+
+    assert result["git_commit"]
+    assert "IEEE-CIS" in result["dataset"]
+    assert result["params"]["max_depth"] == 6
+
+
+def test_weighting_uses_the_legitimate_to_fraud_ratio(data) -> None:
+    features, labels = data
+
+    model = train.train_xgboost_weighted(features, labels)
+
+    expected = (labels == 0).sum() / (labels == 1).sum()
+    assert model.get_params()["scale_pos_weight"] == pytest.approx(expected)

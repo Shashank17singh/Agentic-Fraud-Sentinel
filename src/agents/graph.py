@@ -28,9 +28,14 @@ def route_after_policy(state: FraudDetectionState) -> str:
         return "go_auto_approve"
 
 
-def build_fraud_graph():
+def build_fraud_graph(checkpointer=None):
     """
     Construct and compile the LangGraph for fraud detection.
+
+    Args:
+        checkpointer: Optional LangGraph checkpointer. With one, the graph pauses
+            before human_review so an analyst's decision can be written into the
+            saved state and the run resumed with invoke(None, config).
 
     Returns:
         Graph: The compiled state graph.
@@ -63,6 +68,11 @@ def build_fraud_graph():
 
     graph.add_edge("report", END)
 
-    app = graph.compile()
+    if checkpointer is None:
+        app = graph.compile()
+    else:
+        app = graph.compile(
+            checkpointer=checkpointer, interrupt_before=["human_review"]
+        )
     print("Graph compiled successfully")
     return app

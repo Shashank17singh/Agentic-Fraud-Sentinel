@@ -18,7 +18,7 @@ jobs:
     - name: Install dependencies
       run: |
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install pytest ruff==0.17.6
+        pip install pytest httpx ruff==0.17.6
     - name: Lint
       run: |
         ruff check .
@@ -26,3 +26,23 @@ jobs:
     - name: Run tests
       run: |
         if [ -d tests ] || ls test_*.py 1> /dev/null 2>&1; then pytest; else echo 'No tests found, skipping'; fi
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build image
+      run: docker build -t agentic-fraud-sentinel .
+    - name: Start the container and call the API
+      run: |
+        docker run -d --name api -p 8000:8000 agentic-fraud-sentinel
+        for i in $(seq 1 60); do
+          curl -sf localhost:8000/health && break
+          sleep 2
+        done
+        curl -sf localhost:8000/health
+        curl -sf -X POST localhost:8000/predict -H 'Content-Type: application/json' -d '{"transaction_id": "ci", "features": {"TransactionAmt": 25}}'
+        curl -sf localhost:8000/stats
+    - name: Container logs
+      if: always()
+      run: docker logs api || true

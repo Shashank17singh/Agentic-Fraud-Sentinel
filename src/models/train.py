@@ -158,6 +158,35 @@ def train_xgboost_baseline(X_train, Y_train):
     return model
 
 
+def train_xgboost_weighted(X_train, Y_train):
+    """
+    Train the baseline XGBoost on real rows only, weighting fraud instead of SMOTE.
+
+    scale_pos_weight is set to the legitimate-to-fraud ratio, the usual
+    alternative to oversampling for imbalanced data.
+
+    Args:
+        X_train (pd.DataFrame): Training features without SMOTE rows.
+        Y_train (pd.Series): Training labels.
+
+    Returns:
+        XGBClassifier: The trained model.
+    """
+    positives = int(Y_train.sum())
+    model = XGBClassifier(
+        n_estimators=300,
+        max_depth=6,
+        learning_rate=0.1,
+        eval_metric="aucpr",
+        scale_pos_weight=(len(Y_train) - positives) / positives,
+        device=XGB_DEVICE,
+        random_state=42,
+        n_jobs=-1,
+    )
+    model.fit(X_train, Y_train)
+    return model
+
+
 def train_lightgbm_baseline(X_train, Y_train):
     """
     Train a baseline LightGBM classifier for fraud detection.

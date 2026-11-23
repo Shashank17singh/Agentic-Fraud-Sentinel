@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -16,6 +17,20 @@ from sklearn.metrics import (
 )
 
 RESULTS_DIR = "data/model_results"
+DATASET = "IEEE-CIS train_transaction + train_identity (590,540 rows)"
+
+
+def _git_commit() -> str:
+    """Return the short commit the code ran from, or "unknown" outside a Git checkout."""
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
 
 
 def select_threshold(Y_val, Y_prob):
@@ -76,6 +91,13 @@ def evaluate_model(model, X_test, Y_test, threshold=0.5, model_name="model"):
     results = {
         "model_name": model_name,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "git_commit": _git_commit(),
+        "dataset": DATASET,
+        "params": {
+            k: v
+            for k, v in model.get_params().items()
+            if isinstance(v, (int, float, str, bool)) or v is None
+        },
         "threshold": threshold,
         "auc_roc": round(auc_roc, 4),
         "auc_pr": round(auc_pr, 4),

@@ -247,6 +247,10 @@ def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
 
     print("\nApplying SMOTE...")
     X_train, Y_train = apply_smote(X_train, Y_train)
+    # SMOTE keeps the real rows first and appends synthetic ones, so the first
+    # `real_rows` rows are the untouched training data (used to compare against
+    # class weighting without re-running the pipeline).
+    X_train.attrs["real_rows"] = split
 
     print("\nSaving...")
     save_processed(X_train, X_val, X_test, Y_train, Y_val, Y_test)

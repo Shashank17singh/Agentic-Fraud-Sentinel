@@ -30,9 +30,13 @@ EXPLAINER = joblib.load(EXPLAINER_PATH)
 
 FEATURE_COLS = MODEL.get_booster().feature_names
 
+# Policy rules live here, apart from training, and can be changed per deployment
+# through environment variables without retraining.
 # Below this share of numeric model features the score rests mostly on filled-in
 # zeros, so the policy sends the case to a human instead of deciding.
-MIN_FEATURE_COVERAGE = 0.5
+MIN_FEATURE_COVERAGE = float(os.environ.get("POLICY_MIN_FEATURE_COVERAGE", "0.5"))
+# Scores from this fraction of the threshold up to the threshold are "medium" risk.
+MEDIUM_RISK_FRACTION = float(os.environ.get("POLICY_MEDIUM_RISK_FRACTION", "0.5"))
 
 
 def _supplied_feature_count(tx_data: dict) -> int:
@@ -73,7 +77,7 @@ def risk_scorer_node(state: FraudDetectionState) -> dict:
 
         fraud_prob = float(MODEL.predict_proba(X)[:, 1][0])
 
-        low_cutoff = THRESHOLD * 0.5
+        low_cutoff = THRESHOLD * MEDIUM_RISK_FRACTION
         if fraud_prob >= THRESHOLD:
             risk_level = "high"
         elif fraud_prob >= low_cutoff:
@@ -115,8 +119,8 @@ def explainer_node(state: FraudDetectionState) -> dict:
         for feat in top:
             direction = "increased" if feat["shap_value"] > 0 else "decreased"
             lines.append(
-                f"- {feat['feature']} (value: {feat['actual_value']})"
-                f"{direction} fraud score by {abs(feat['shap_value']): .3f}"
+                f"- {feat['feature']} (value: {feat['actual_value']}) "
+                f"{direction} fraud score by {abs(feat['shap_value']):.3f}"
             )
 
         explanation_text = (
@@ -130,7 +134,7 @@ def explainer_node(state: FraudDetectionState) -> dict:
 
         return {
             "explanation_text": explanation_text,
-            "shap_probability": explanation,
+            "shap_explanation": explanation,
         }
 
     except Exception as e:  # noqa: BLE001
@@ -209,16 +213,24 @@ def policy_node(state: FraudDetectionState) -> dict:
 
 def human_review_node(state: FraudDetectionState) -> dict:
     """
-    In a real system this would pause the graph and wait for a human
-    analyst to log a decision. Here we log the case for review and add a note
-    to the report. This node existing is what makes the graph genuinely agentic--
-    a conditional branch.
+    Apply the analyst's decision. When the graph is compiled with a checkpointer
+    it pauses before this node, and the API resumes it once an analyst has
+    approved or denied the case. Without one (notebooks, tests) the case is only
+    noted as queued.
     """
+    action = state.get("analyst_decision")
+    if action is None:
+        print(f"[HumanReview] tx={state['transaction_id']} queued for analyst review")
+        return {
+            "policy_reasoning": state["policy_reasoning"]
+            + "\n[QUEUED FOR HUMAN REVIEW]"
+        }
 
-    print(f"[HumanReview] tx = {state['transaction_id']}queued for analyst review")
-
+    print(f"[HumanReview] tx={state['transaction_id']} analyst decided {action}")
+    note = state.get("analyst_note") or ""
     return {
-        "policy_reasoning": state["policy_reasoning"] + "\n[QUEUED FOR HUMAN REVIEW]"
+        "decision": action,
+        "policy_reasoning": f"{state['policy_reasoning']}\n[ANALYST {action.upper()}] {note}".rstrip(),
     }
 
 

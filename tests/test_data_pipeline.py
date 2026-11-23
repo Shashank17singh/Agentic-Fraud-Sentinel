@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -9,7 +10,7 @@ from src.data.features import (
     engineer_features,
     impute_missing,
 )
-from src.data.preprocessing import encode_categoricals
+from src.data.preprocessing import apply_smote, encode_categoricals
 
 
 def test_missingness_flags_mark_missing_values() -> None:
@@ -118,3 +119,30 @@ def test_later_rows_never_change_earlier_rows_features() -> None:
     ]
 
     pd.testing.assert_frame_equal(alone, with_future)
+
+
+def test_smote_keeps_the_real_rows_first() -> None:
+    rng = np.random.default_rng(0)
+    features = pd.DataFrame(rng.normal(size=(200, 3)), columns=list("abc"))
+    labels = pd.Series([1] * 10 + [0] * 190)
+
+    X_res, Y_res = apply_smote(features, labels, sampling_strategy=0.5)
+
+    assert (X_res.iloc[:200].to_numpy() == features.to_numpy()).all()
+    assert (Y_res.iloc[200:] == 1).all()
+
+
+def test_gap_since_previous_transaction_looks_only_at_the_same_card() -> None:
+    df = pd.DataFrame(
+        {
+            "TransactionDT": [100, 160, 400, 1000],
+            "TransactionAmt": [10.0, 20.0, 30.0, 40.0],
+            "card1": [1, 2, 1, 1],
+        }
+    )
+
+    out = add_behavioral_aggregates(df)
+
+    gaps = out.sort_values("TransactionDT")["card1_secs_since_prev"].tolist()
+    assert np.isnan(gaps[0]) and np.isnan(gaps[1])
+    assert gaps[2:] == [300.0, 600.0]

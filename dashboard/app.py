@@ -471,3 +471,49 @@ if st.button("Ask") and question.strip():
             st.error(f"API error: {response.status_code}")
     except requests.exceptions.ConnectionError:
         st.error("Cannot connect to API.")
+
+st.divider()
+st.subheader("Live Monitoring")
+st.caption(
+    "Recent /predict traffic on the API. Counts reset when the API restarts, so "
+    "they cover only requests since the last deploy."
+)
+try:
+    stats = requests.get(f"{API_URL}/stats", timeout=30).json()
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Requests", stats["requests_total"])
+    col2.metric("Error rate", f"{stats['error_rate']:.1%}")
+    p95 = stats["latency_ms"]["p95"]
+    col3.metric("p95 latency", "n/a" if p95 is None else f"{p95:.0f} ms")
+    col4.metric("Awaiting review", stats["review_queue"]["pending"])
+    drift = stats["drift_psi"]
+    col5.metric("Max drift (PSI)", f"{max(drift.values()):.3f}" if drift else "n/a")
+    if drift:
+        st.caption("Drift by field (PSI, above 0.2 is a large shift)")
+        st.bar_chart(pd.Series(drift, name="psi"))
+    if stats["decision_rates"]:
+        st.bar_chart(pd.Series(stats["decision_rates"], name="share"))
+    for alert in stats["alerts"]:
+        st.warning(alert)
+    if not stats["alerts"]:
+        st.success("No alerts.")
+
+    pending = requests.get(f"{API_URL}/reviews", timeout=30).json()
+    st.markdown("**Review queue**")
+    if pending:
+        st.dataframe(pd.DataFrame(pending), use_container_width=True)
+        case = st.selectbox("Transaction", [r["transaction_id"] for r in pending])
+        note = st.text_input("Analyst note")
+        approve, deny = st.columns(2)
+        for column, action in ((approve, "approve"), (deny, "deny")):
+            if column.button(action.capitalize(), key=f"review-{action}"):
+                requests.post(
+                    f"{API_URL}/reviews/{case}",
+                    json={"action": action, "note": note},
+                    timeout=30,
+                )
+                st.rerun()
+    else:
+        st.info("No transactions waiting for review.")
+except (requests.exceptions.RequestException, KeyError, ValueError):
+    st.error("Monitoring stats are not available from the API yet.")
