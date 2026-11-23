@@ -3,6 +3,7 @@ import json
 import os
 
 import pandas as pd
+import requests
 import streamlit as st
 
 API_URL = "https://agentic-fraud-sentinel.onrender.com"
@@ -328,8 +329,6 @@ with col2:
 
 
 if st.button("Run fraud check", type="primary"):
-    import requests
-
     features = {
         "TransactionAmt": transaction_amt,
         "card1": card1,
