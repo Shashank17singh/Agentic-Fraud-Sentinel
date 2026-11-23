@@ -2,6 +2,7 @@
 import json
 import os
 
+import altair as alt
 import pandas as pd
 import requests
 import streamlit as st
@@ -486,9 +487,21 @@ try:
     col5.metric("Max drift (PSI)", f"{max(drift.values()):.3f}" if drift else "n/a")
     if drift:
         st.caption("Drift by field (PSI, above 0.2 is a large shift)")
-        st.bar_chart(pd.Series(drift, name="psi"), horizontal=True)
+        st.bar_chart(pd.Series(drift, name="psi"))
     if stats["decision_rates"]:
-        st.bar_chart(pd.Series(stats["decision_rates"], name="share"), horizontal=True)
+        rates = pd.DataFrame(
+            {
+                "decision": list(stats["decision_rates"]),
+                "share": list(stats["decision_rates"].values()),
+            }
+        )
+        # Same bar chart, with labels kept upright so "flag" reads normally.
+        st.altair_chart(
+            alt.Chart(rates)
+            .mark_bar()
+            .encode(x=alt.X("decision:N", axis=alt.Axis(labelAngle=0)), y="share:Q"),
+            width="stretch",
+        )
     for alert in stats["alerts"]:
         st.warning(alert)
     if not stats["alerts"]:
