@@ -46,9 +46,15 @@ def retrieve(question: str, top_k: int = TOP_K) -> list[tuple[dict, float]]:
     return [(PASSAGES[i], float(scores[i])) for i in best if scores[i] >= MIN_SCORE]
 
 
-def _groq_reply(question: str, hits: list[tuple[dict, float]], key: str) -> str:
+def _cite(hits: list[tuple[dict, float]]) -> list[tuple[int, dict, float]]:
+    """Number hits by source page, so passages from the same page share one [n]."""
+    numbers: dict[str, int] = {}
+    return [(numbers.setdefault(p["url"], len(numbers) + 1), p, s) for p, s in hits]
+
+
+def _groq_reply(question: str, cited: list[tuple[int, dict, float]], key: str) -> str:
     """Ask Groq to answer only from the numbered passages, citing them as [n]."""
-    context = "\n\n".join(f"[{n}] {p['text']}" for n, (p, _) in enumerate(hits, 1))
+    context = "\n\n".join(f"[{n}] {p['text']}" for n, p, _ in cited)
     body = {
         "model": GROQ_MODEL,
         "temperature": 0.2,
@@ -103,16 +109,20 @@ def answer(question: str) -> dict:
     if not hits:
         return _clarify("retrieval")
 
-    sources = [
-        {"n": n, "title": p["title"], "url": p["url"], "score": round(score, 3)}
-        for n, (p, score) in enumerate(hits, 1)
-    ]
-    reply = "\n\n".join(f"{p['text']} [{n}]" for n, (p, _) in enumerate(hits, 1))
+    cited = _cite(hits)
+    # hits are best first, so each page keeps the score of its best passage
+    sources = []
+    for n, p, score in cited:
+        if n > len(sources):
+            sources.append(
+                {"n": n, "title": p["title"], "url": p["url"], "score": round(score, 3)}
+            )
+    reply = "\n\n".join(f"{p['text']} [{n}]" for n, p, _ in cited)
     mode = "retrieval"
     key = os.environ.get("GROQ_API_KEY")
     if key:
         try:
-            reply, mode = _groq_reply(question, hits, key), "groq"
+            reply, mode = _groq_reply(question, cited, key), "groq"
             if NO_ANSWER in reply:
                 return _clarify(mode)
         # network/HTTP errors are OSError; bad JSON or shape is ValueError/KeyError/IndexError

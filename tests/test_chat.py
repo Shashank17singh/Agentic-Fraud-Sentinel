@@ -91,3 +91,11 @@ def test_groq_saying_no_answer_becomes_a_clarification(monkeypatch) -> None:
 
     assert reply["grounded"] is False
     assert reply["sources"] == []
+
+
+def test_passages_from_one_page_share_a_citation() -> None:
+    reply = assistant.answer("What should I do if my credit card was stolen?")
+
+    urls = [source["url"] for source in reply["sources"]]
+    assert len(urls) == len(set(urls))
+    assert [source["n"] for source in reply["sources"]] == list(range(1, len(urls) + 1))
