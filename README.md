@@ -74,6 +74,7 @@ All rows are scored once on the last 20% of transactions by time (118,108 rows).
 - Fraud rate is non-stationary, varying between 2.0% and 4.8% across the 185-day transaction window.
 - 214 high-cardinality features with >50% missingness are tracked via explicit indicators.
 - `TransactionAmt` alone provides weak discrimination.
+- By mean SHAP value on 5,000 test rows, the transaction hour (`tx_hour_sin`) ranks fifth, and 5 of the top 20 features are engineered: three hour features plus the card and email-domain frequency counts. Raw Vesta fields such as `C13`, `M4` and `V317` lead the ranking. The last cells of the retrain notebook reproduce this.
 
 **News classifier** (ISOT, 38,010 articles after removing duplicates and texts under 30 words; stratified 80/20 split):
 
