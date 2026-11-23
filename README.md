@@ -66,7 +66,7 @@ Every row is scored once on the newest 20% of transactions (118,108 rows). Imput
 
 From the data and the model:
 
-- The fraud rate moves between 2.0% and 4.8% across the 185 days of transactions.
+- The fraud rate moves between 2.0% and 4.8% across the 182 days of transactions.
 - 214 features are more than half missing, and each gets a flag column.
 - `TransactionAmt` on its own separates fraud poorly.
 - By mean SHAP value on 5,000 test rows, raw Vesta fields such as `C13`, `M4` and `V317` lead. The hour feature `tx_hour_sin` ranks fifth, and 5 of the top 20 features are engineered: three hour features plus the card and email-domain frequency counts. The last cells of the retrain notebook reproduce this.
