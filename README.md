@@ -226,7 +226,6 @@ The image holds the API and the shipped models. The dashboard is deployed separa
 - Score drift appears only after the retrain notebook has saved its reference. Fraud precision and recall in production need labels, and the only ones the service sees are analyst decisions.
 - Without `CHECKPOINT_DB_PATH`, paused runs live in memory. After a restart the analyst's decision is still recorded, but the run cannot resume, so no final report comes back. On Render's free tier even the SQLite file is wiped on each deploy.
 - The alert limits are common defaults, not tuned on real traffic.
-- The Docker container runs as root.
 
 ## License
 

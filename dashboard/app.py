@@ -313,12 +313,9 @@ col1, col2 = st.columns(2)
 with col1:
     transaction_id = st.text_input("Transaction ID", value="TX_TEST_001")
     transaction_amt = st.number_input(
-        "Transaction amount ", min_value=0.0, max_value=100.0, step=10.0
+        "Transaction amount", min_value=0.0, max_value=5000.0, value=50.0, step=10.0
     )
     card1 = st.number_input("Card1", value=1000.0)
-    p_email = st.selectbox(
-        "P_emaildomain", ["gmail.com", "yahoo.com", "hotmail.com", "unknown"]
-    )
 
 
 with col2:
@@ -336,7 +333,6 @@ if st.button("Run fraud check", type="primary"):
         "C14": c14,
         "V258": v258,
         "V317": v317,
-        "P_emaildomain": p_email,
     }
 
     payload = {"transaction_id": transaction_id, "features": features}
@@ -490,9 +486,9 @@ try:
     col5.metric("Max drift (PSI)", f"{max(drift.values()):.3f}" if drift else "n/a")
     if drift:
         st.caption("Drift by field (PSI, above 0.2 is a large shift)")
-        st.bar_chart(pd.Series(drift, name="psi"))
+        st.bar_chart(pd.Series(drift, name="psi"), horizontal=True)
     if stats["decision_rates"]:
-        st.bar_chart(pd.Series(stats["decision_rates"], name="share"))
+        st.bar_chart(pd.Series(stats["decision_rates"], name="share"), horizontal=True)
     for alert in stats["alerts"]:
         st.warning(alert)
     if not stats["alerts"]:
