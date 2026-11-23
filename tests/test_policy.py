@@ -15,7 +15,8 @@ def test_sparse_transactions_go_to_review_instead_of_auto_deny() -> None:
 
     assert result["decision"] == "flag"
     assert result["requires_human"] is True
-    assert f"1 of {len(nodes.FEATURE_COLS)}" in result["policy_reasoning"]
+    # Both keys are model columns; the email domain is now encoded, not dropped.
+    assert f"2 of {len(nodes.FEATURE_COLS)}" in result["policy_reasoning"]
 
 
 def test_complete_transactions_follow_the_risk_rules() -> None:

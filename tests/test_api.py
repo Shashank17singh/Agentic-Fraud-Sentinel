@@ -44,3 +44,14 @@ def test_shap_factors_say_which_way_they_push() -> None:
 
     assert factor["direction"] in ("increases fraud risk", "decreases fraud risk")
     assert monitor.stats()["models"]
+
+
+def test_feedback_attaches_the_true_outcome() -> None:
+    _predict("api-4")
+
+    reply = client.post("/feedback/api-4", json={"is_fraud": False})
+
+    assert reply.status_code == 200
+    assert reply.json()["is_fraud"] is False
+    assert client.get("/stats").json()["labelled_performance"]["labelled"] >= 1
+    assert client.post("/feedback/nope", json={"is_fraud": True}).status_code == 404

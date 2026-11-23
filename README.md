@@ -39,7 +39,7 @@ A transaction goes through LangGraph nodes that share one typed state. The risk 
 | Probability between half the threshold and the threshold | flag | yes |
 | Probability below half the threshold | approve | no |
 
-The first rule exists because missing features are filled with 0 before scoring, so a request with only a handful of fields gets a score that means little. The policy is kept apart from training: `POLICY_MIN_FEATURE_COVERAGE` (default 0.5) and `POLICY_MEDIUM_RISK_FRACTION` (default 0.5) change the rules without retraining.
+The API prepares each transaction the way training did: frequency maps, training medians and category codes fitted on the training period ship inside the model bundle, and the time and missingness features are derived from the raw fields. A field sent as `null` counts as supplied but missing, as it was in training. History features such as a card's recent transaction counts need the card's past transactions, so a caller without them gets the training median. That is why the first rule exists: a request with only a handful of fields gets a score that rests mostly on medians. The policy is kept apart from training: `POLICY_MIN_FEATURE_COVERAGE` (default 0.5) and `POLICY_MEDIUM_RISK_FRACTION` (default 0.5) change the rules without retraining.
 
 ## Features
 
@@ -49,7 +49,7 @@ The first rule exists because missing features are filled with 0 before scoring,
 | Explanations | TreeSHAP gives the features that pushed each score up or down, with the feature value, SHAP contribution and direction. |
 | Decision workflow | LangGraph routes each transaction to approve, deny or human review using the rules above. |
 | Review queue | A case that needs a human pauses the LangGraph run before the human review node, and its state is saved by a checkpointer. `/predict` answers straight away with the case marked as awaiting review. When an analyst approves or denies it through `POST /reviews/{id}`, the decision is written into the saved state and the run resumes through human review and the report node, which returns the final report. The time each case waited is recorded. |
-| Monitoring | Each prediction is logged with its ID, latency, probability, decision and model version. `GET /stats` reports request volume, error rate, p50/p95/p99 latency, decision rates, the review queue, drift (PSI against the training period) for the ten raw numeric fields that rank highest by SHAP and for the model's scores, and alerts when any of these crosses a limit. With `MONITOR_LOG_PATH` set, every prediction and review goes to a JSON-lines file, and the stats and review queue are rebuilt from it after a restart. Analyst decisions give the share of reviewed cases that were fraud. |
+| Monitoring | Each prediction is logged with its ID, latency, probability, decision and model version. `GET /stats` reports request volume, error rate, p50/p95/p99 latency, decision rates, the review queue, drift (PSI against the training period) for the ten raw numeric fields that rank highest by SHAP and for the model's scores, and alerts when any of these crosses a limit. With `MONITOR_LOG_PATH` set, every prediction and review goes to a JSON-lines file, and the stats and review queue are rebuilt from it after a restart. Analyst decisions give the share of reviewed cases that were fraud. When the true outcome arrives later (a chargeback, or none), `POST /feedback/{id}` attaches it, and `/stats` reports the model's live precision, recall and false-positive rate on that labelled traffic. |
 | Experiment log | Every evaluation is appended to `model_log.json` with its metrics, parameters, dataset, timestamp and Git commit. |
 | News screening | `POST /news` labels an article *likely fake*, *likely real* or *uncertain* with TF-IDF and logistic regression trained on the ISOT Fake and Real News dataset. Scores between 0.35 and 0.65 are reported as uncertain, and texts under 30 words are not scored. It judges writing style only and does not check facts. |
 | Fraud and news assistant | `POST /chat` answers from 29 passages taken from FactCheck.org, UC Berkeley Library, USAGov and Wikipedia, and cites them as [1], [2]. When no passage matches, it asks the user to rephrase. If `GROQ_API_KEY` is set, Groq (`openai/gpt-oss-120b` by default, change it with `GROQ_MODEL`) writes the reply from the retrieved passages only. Without a key, or if the call fails, it returns the passages. |
@@ -83,6 +83,18 @@ From the data and the model:
 - 214 features are more than half missing, and each gets a flag column.
 - `TransactionAmt` on its own separates fraud poorly.
 - By mean SHAP value on 5,000 test rows, raw fields lead: `C13`, `V317`, `TransactionAmt`, `C1` and `M4`. The card frequency count `card1_freq` ranks sixth, and 4 of the top 20 features are engineered: `card1_freq`, `tx_hour`, `card2_freq` and `P_emaildomain_freq`. The time since the previous transaction is not in the top 20. [`shap_top_features.csv`](notebooks/data/model_results/shap_top_features.csv) has the full list, and the last cells of the retrain notebook reproduce it.
+
+### Live replay with real outcomes
+
+`scripts/build_inference_artifacts.py` rebuilds the training preprocessing from the raw Kaggle files and checks it: scored through the rebuilt steps, the test period gives 0.8876 AUC-ROC and 0.5111 AUC-PR against the saved 0.8875 and 0.5110, and preparing transactions one at a time the way the API does gives the same scores as the batch pipeline.
+
+`scripts/replay_labelled.py` then sent 1,000 randomly drawn test-period transactions, raw fields only, through a locally running API and reported each true outcome to `/feedback`. This is what `/stats` showed:
+
+| Labelled | Fraud | Precision | Recall | False-positive rate | Approved | Sent to review |
+| :------: | :---: | :-------: | :----: | :-----------------: | :------: | :------------: |
+| 1,000 | 35 | 0.500 (14 of 28) | 0.400 (14 of 35) | 0.0145 | 94.9% | 5.1% |
+
+With 35 fraud cases the uncertainty is wide, so these numbers are in line with the test-set 0.548 precision and 0.472 recall rather than a separate estimate. Latency on a laptop was 447 ms at p50 and 1,223 ms at p95, mostly SHAP.
 
 ### News classifier
 
@@ -118,6 +130,7 @@ Every real ISOT article comes from Reuters, so the Reuters byline, image credits
 | POST | `/predict` | Fraud probability, risk level, decision, SHAP explanation and policy reasoning |
 | GET | `/metrics` | Test metrics and threshold of the shipped fraud model |
 | GET | `/stats` | Live volume, latency, decision rates, drift, review queue and alerts |
+| POST | `/feedback/{transaction_id}` | Attach the true outcome (`is_fraud`) to a recent prediction |
 | GET | `/reviews` | Cases waiting for an analyst |
 | POST | `/reviews/{transaction_id}` | Record an analyst's approve or deny, resume the paused run and return its final report |
 | POST | `/news` | News label, fake probability and a note |
@@ -144,6 +157,9 @@ Agentic-Fraud-Sentinel/
 │   ├── api.ipynb             # API walkthrough
 │   ├── colab_retrain.ipynb   # Full retrain on a Colab GPU
 │   └── data/models/          # Shipped models
+├── scripts/
+│   ├── build_inference_artifacts.py  # Rebuild training preprocessing for the API
+│   └── replay_labelled.py            # Send real labelled transactions to a running API
 ├── src/
 │   ├── agents/               # LangGraph state, nodes and graph
 │   ├── chat/                 # Retrieval assistant and its source passages
@@ -223,7 +239,7 @@ The image holds the API and the shipped models. The dashboard is deployed separa
 - The news classifier only learns writing style from one dataset. A false story written in wire-service style can be labelled likely real.
 - The assistant knows only its 29 passages. Without Groq, an off-topic question that shares a common word with a passage can still get an answer from that passage.
 - Stats cover the last 1,000 requests. They survive a restart only with `MONITOR_LOG_PATH` on a disk that persists. Render's free disk is wiped on each deploy, so the live stats reset there.
-- Score drift appears only after the retrain notebook has saved its reference. Fraud precision and recall in production need labels, and the only ones the service sees are analyst decisions.
+- Score drift appears only after the retrain notebook has saved its reference. Live precision, recall and false-positive rate need true outcomes sent to `/feedback`. Real chargebacks arrive weeks later; the replay below stands in for them with the dataset's own labels.
 - Without `CHECKPOINT_DB_PATH`, paused runs live in memory. After a restart the analyst's decision is still recorded, but the run cannot resume, so no final report comes back. On Render's free tier even the SQLite file is wiped on each deploy.
 - The alert limits are common defaults, not tuned on real traffic.
 

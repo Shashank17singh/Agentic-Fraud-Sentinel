@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from sklearn.impute import SimpleImputer
 
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -191,7 +190,8 @@ def add_behavioral_aggregates(df: pd.DataFrame) -> DataFrame:
     return df
 
 
-num_imputer = SimpleImputer(strategy="median", keep_empty_features=True)
+# Numeric medians learned from train by impute_missing(fit=True).
+num_medians: dict = {}
 
 
 def impute_missing(df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
@@ -212,9 +212,64 @@ def impute_missing(df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
     df[cat_cols] = df[cat_cols].fillna("missing")
 
     if fit:
-        df[num_cols] = num_imputer.fit_transform(df[num_cols])
+        num_medians.clear()
+        # One column at a time in float64: the medians a median SimpleImputer
+        # gives, without copying the whole frame to float64 (1.5 GB on train).
+        for col in num_cols:
+            median = df[col].astype("float64").median()
+            num_medians[col] = 0.0 if pd.isna(median) else float(median)
 
-    else:
-        df[num_cols] = num_imputer.transform(df[num_cols])
+    df.fillna({col: num_medians.get(col, 0.0) for col in num_cols}, inplace=True)
 
     return df
+
+
+def _is_number(value) -> bool:
+    return isinstance(value, (int, float, np.number)) and not isinstance(value, bool)
+
+
+def prepare_transaction(tx: dict, prep: dict, feature_cols: list[str]) -> dict:
+    """
+    Turn one raw transaction into model inputs the way training did.
+
+    A model column the caller sends as a number is kept as is. Otherwise the
+    value is derived from raw fields (time features, missingness flags,
+    frequency and category codes, using `prep` from inference_artifacts) or
+    filled with the training median. History features such as card counts need
+    the card's past transactions, so a caller without them gets the median.
+    """
+    raw = {k: v for k, v in tx.items() if v is not None}
+    derived: dict = {}
+
+    dt = raw.get("TransactionDT")
+    if _is_number(dt):
+        hour = (dt // 3600) % 24
+        derived.update(
+            tx_hour=hour,
+            tx_day=(dt // 86400) % 7,
+            tx_hour_sin=np.sin(2 * np.pi * hour / 24),
+            tx_hour_cos=np.cos(2 * np.pi * hour / 24),
+        )
+    for col in COLS_TO_FLAG:
+        derived[f"{col}_was_missing"] = int(col not in raw)
+    for col, freqs in prep.get("freq_maps", {}).items():
+        value = raw.get(col)
+        hashable = isinstance(value, (str, int, float))
+        derived[f"{col}_freq"] = freqs.get(value, 0.0) if hashable else 0.0
+
+    codes_by_col = prep.get("category_codes", {})
+    medians = prep.get("medians", {})
+    row = {}
+    for col in feature_cols:
+        value = raw.get(col)
+        if _is_number(value):
+            row[col] = value
+        elif col in codes_by_col:
+            codes = codes_by_col[col]
+            key = "missing" if value is None else str(value)
+            row[col] = codes.get(key, codes.get("__unknown__", 0))
+        elif col in derived:
+            row[col] = derived[col]
+        else:
+            row[col] = medians.get(col, 0.0)
+    return row

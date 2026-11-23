@@ -9,8 +9,14 @@ from src.data.features import (
     add_time_features,
     engineer_features,
     impute_missing,
+    prepare_transaction,
 )
-from src.data.preprocessing import apply_smote, encode_categoricals
+from src.data.preprocessing import (
+    apply_smote,
+    encode_categoricals,
+    fit_transform_split,
+    inference_artifacts,
+)
 
 
 def test_missingness_flags_mark_missing_values() -> None:
@@ -146,3 +152,56 @@ def test_gap_since_previous_transaction_looks_only_at_the_same_card() -> None:
     gaps = out.sort_values("TransactionDT")["card1_secs_since_prev"].tolist()
     assert np.isnan(gaps[0]) and np.isnan(gaps[1])
     assert gaps[2:] == [300.0, 600.0]
+
+
+def test_one_raw_transaction_is_prepared_exactly_like_the_batch_pipeline() -> None:
+    raw = pd.DataFrame(
+        {
+            "TransactionID": [1, 2, 3, 4, 5],
+            "isFraud": [0, 1, 0, 0, 1],
+            "TransactionDT": [100, 7200, 90000, 180000, 200000],
+            "TransactionAmt": [10.0, 20.0, None, 40.0, 55.0],
+            "card1": [1.0, 1.0, 2.0, 2.0, 3.0],
+            "card4": ["visa", "visa", None, "master", "amex"],
+            "id_01": [None, 1.0, 2.0, None, None],
+        }
+    )
+    engineered = engineer_features(raw)
+    train, test = engineered.iloc[:3].copy(), engineered.iloc[3:].copy()
+    raw_test = test.copy()  # what a caller would send, before fitting
+
+    _, prepared = fit_transform_split(train, test)
+    cols = [c for c in prepared.columns if c not in ("TransactionID", "isFraud")]
+    prep = inference_artifacts()
+
+    for i in range(len(raw_test)):
+        sent = {
+            k: (None if pd.isna(v) else v)
+            for k, v in raw_test.iloc[i].to_dict().items()
+            if k != "isFraud"
+        }
+        one = prepare_transaction(sent, prep, cols)
+        assert one == pytest.approx(prepared.iloc[i][cols].to_dict())
+
+
+def test_a_bare_transaction_gets_training_medians_and_unknown_codes() -> None:
+    prep = {
+        "medians": {"C1": 3.0},
+        "freq_maps": {"P_emaildomain": {"gmail.com": 0.4}},
+        "category_codes": {"card4": {"missing": 0, "visa": 1, "__unknown__": 2}},
+    }
+    cols = ["C1", "P_emaildomain_freq", "card4", "id_01_was_missing", "TransactionAmt"]
+
+    one = prepare_transaction(
+        {"TransactionAmt": 25, "P_emaildomain": "gmail.com", "card4": "bitcoin"},
+        prep,
+        cols,
+    )
+
+    assert one == {
+        "C1": 3.0,
+        "P_emaildomain_freq": 0.4,
+        "card4": 2,
+        "id_01_was_missing": 1,
+        "TransactionAmt": 25,
+    }

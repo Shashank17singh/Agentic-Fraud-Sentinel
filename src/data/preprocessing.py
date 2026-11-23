@@ -147,6 +147,7 @@ def save_processed(X_train, X_val, X_test, Y_train, Y_val, Y_test):
     Y_val.to_frame().to_parquet(f"{PROCESSED_DIR}Y_val.parquet", index=False)
     Y_test.to_frame().to_parquet(f"{PROCESSED_DIR}Y_test.parquet", index=False)
     joblib.dump(label_encoders, f"{PROCESSED_DIR}label_encoders.pkl")
+    joblib.dump(inference_artifacts(), f"{PROCESSED_DIR}inference_artifacts.pkl")
     print(f"Saved to {PROCESSED_DIR}")
 
 
@@ -165,11 +166,54 @@ def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
     Returns:
         tuple: (X_train, X_val, X_test, Y_train, Y_val, Y_test)
     """
-    from src.data.features import (
-        add_frequency_encoding,
-        engineer_features,
-        impute_missing,
-    )
+    df = load_engineered(raw_transaction_path, raw_identity_path)
+
+    print("\nSplitting...")
+    train, test = time_based_split(df)
+    del df
+    gc.collect()
+    train, test = fit_transform_split(train, test)
+    print("\nSeparating features and target...")
+    drop = [c for c in DROP_COLS if c in train.columns]
+
+    X_train = train.drop(columns=drop).reset_index(drop=True)
+    Y_train = train["isFraud"].reset_index(drop=True)
+    X_test = test.drop(columns=drop).reset_index(drop=True)
+    Y_test = test["isFraud"].reset_index(drop=True)
+
+    del train, test
+    gc.collect()
+
+    print(f"X_train: {len(X_train):,} rows | Y_train: {len(Y_train):,} rows")
+    print(f"X_test:  {len(X_test):,} rows  | Y_test:  {len(Y_test):,} rows")
+
+    # The latest 20% of train becomes validation for tuning and the threshold.
+    # It is carved off before SMOTE so it keeps the real fraud rate.
+    split = int(len(X_train) * 0.8)
+    X_val, Y_val = X_train.iloc[split:], Y_train.iloc[split:]
+    X_train, Y_train = X_train.iloc[:split], Y_train.iloc[:split]
+    print(f"X_val:   {len(X_val):,} rows (held out before SMOTE)")
+
+    print("\nApplying SMOTE...")
+    X_train, Y_train = apply_smote(X_train, Y_train)
+    # SMOTE keeps the real rows first and appends synthetic ones, so the first
+    # `real_rows` rows are the untouched training data (used to compare against
+    # class weighting without re-running the pipeline).
+    X_train.attrs["real_rows"] = split
+
+    print("\nSaving...")
+    save_processed(X_train, X_val, X_test, Y_train, Y_val, Y_test)
+
+    return X_train, X_val, X_test, Y_train, Y_val, Y_test
+
+
+def load_engineered(raw_transaction_path, raw_identity_path):
+    """
+    Load and join the raw CSVs, drop mostly-empty columns and add the row-local
+    and backward-looking features. Nothing here is fitted, so it is safe before
+    the split.
+    """
+    from src.data.features import engineer_features
 
     print("Loading data...")
     trans_sample = pd.read_csv(raw_transaction_path, nrows=10000)
@@ -209,50 +253,42 @@ def run_preprocessing_pipeline(raw_transaction_path, raw_identity_path):
     print(f"Joined shape: {df.shape}")
 
     print("\nEngineering features...")
-    df = engineer_features(df)
+    return engineer_features(df)
 
-    print("\nSplitting...")
-    train, test = time_based_split(df)
-    del df
-    gc.collect()
-    print("\nFrequency encoding...")
 
+def fit_transform_split(train, test):
+    """Fit frequency maps, the imputer and encoders on train; apply them to test."""
+    from src.data.features import add_frequency_encoding, impute_missing
+
+    print("Frequency encoding...")
     train = add_frequency_encoding(train, fit=True)
     test = add_frequency_encoding(test, fit=False)
-    print("\nImputing (medians from train only)...")
+    print("Imputing (medians from train only)...")
     train = impute_missing(train, fit=True)
     test = impute_missing(test, fit=False)
-    print("\nEncoding categoricals...")
-    train, test = encode_categoricals(train, test)
-    print("\nSeparating features and target...")
-    drop = [c for c in DROP_COLS if c in train.columns]
+    print("Encoding categoricals...")
+    return encode_categoricals(train, test)
 
-    X_train = train.drop(columns=drop).reset_index(drop=True)
-    Y_train = train["isFraud"].reset_index(drop=True)
-    X_test = test.drop(columns=drop).reset_index(drop=True)
-    Y_test = test["isFraud"].reset_index(drop=True)
 
-    del train, test
-    gc.collect()
+def inference_artifacts() -> dict:
+    """
+    What the API needs, fitted on train, to turn one raw transaction into model
+    inputs the way training did: frequency maps, numeric medians and category
+    codes. Call after fit_transform_split in the same session.
+    """
+    from src.data.features import freq_maps, num_medians
 
-    print(f"X_train: {len(X_train):,} rows | Y_train: {len(Y_train):,} rows")
-    print(f"X_test:  {len(X_test):,} rows  | Y_test:  {len(Y_test):,} rows")
+    def plain(value):
+        return value.item() if hasattr(value, "item") else value
 
-    # The latest 20% of train becomes validation for tuning and the threshold.
-    # It is carved off before SMOTE so it keeps the real fraud rate.
-    split = int(len(X_train) * 0.8)
-    X_val, Y_val = X_train.iloc[split:], Y_train.iloc[split:]
-    X_train, Y_train = X_train.iloc[:split], Y_train.iloc[:split]
-    print(f"X_val:   {len(X_val):,} rows (held out before SMOTE)")
-
-    print("\nApplying SMOTE...")
-    X_train, Y_train = apply_smote(X_train, Y_train)
-    # SMOTE keeps the real rows first and appends synthetic ones, so the first
-    # `real_rows` rows are the untouched training data (used to compare against
-    # class weighting without re-running the pipeline).
-    X_train.attrs["real_rows"] = split
-
-    print("\nSaving...")
-    save_processed(X_train, X_val, X_test, Y_train, Y_val, Y_test)
-
-    return X_train, X_val, X_test, Y_train, Y_val, Y_test
+    return {
+        "freq_maps": {
+            col: {plain(k): float(v) for k, v in counts.items()}
+            for col, counts in freq_maps.items()
+        },
+        "medians": dict(num_medians),
+        "category_codes": {
+            col: {str(c): i for i, c in enumerate(le.classes_)}
+            for col, le in label_encoders.items()
+        },
+    }

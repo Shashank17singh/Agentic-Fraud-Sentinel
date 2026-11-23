@@ -106,6 +106,10 @@ class Monitor:
                     case = self.reviews.get(event["transaction_id"])
                     if case:
                         case.update({k: v for k, v in event.items() if k != "event"})
+                elif event.get("event") == "label":
+                    rec = self._latest(event["transaction_id"])
+                    if rec is not None:
+                        rec["is_fraud"] = event["is_fraud"]
                 else:
                     self._add(event)
 
@@ -151,6 +155,39 @@ class Monitor:
             self._add(rec)
         self._append(rec)
         return rec
+
+    def _latest(self, transaction_id: str) -> dict | None:
+        """The most recent successful prediction for this ID still in the window."""
+        for rec in reversed(self.records):
+            if rec["transaction_id"] == transaction_id and rec.get("error") is None:
+                return rec
+        return None
+
+    def label(self, transaction_id: str, is_fraud: bool) -> dict:
+        """
+        Attach the true outcome (for example a chargeback, or its absence) to a
+        scored transaction; raises KeyError if it is not in the window.
+        """
+        with self._lock:
+            rec = self._latest(transaction_id)
+            if rec is None:
+                raise KeyError(transaction_id)
+            rec["is_fraud"] = bool(is_fraud)
+            result = {
+                "transaction_id": transaction_id,
+                "is_fraud": rec["is_fraud"],
+                "fraud_probability": rec["fraud_probability"],
+                "threshold": rec["threshold"],
+            }
+        self._append(
+            {
+                "event": "label",
+                "time": _now(),
+                "transaction_id": transaction_id,
+                "is_fraud": bool(is_fraud),
+            }
+        )
+        return result
 
     def pending_reviews(self) -> list[dict]:
         with self._lock:
@@ -263,12 +300,48 @@ class Monitor:
         ] + [
             (f"psi {name}", value, ALERT_LIMITS["psi"]) for name, value in drift.items()
         ]
+        out["labelled_performance"] = _labelled_performance(ok)
         out["alerts"] = [
             f"{name} {value} is above {limit}"
             for name, value, limit in checks
             if value is not None and value > limit
         ]
         return out
+
+
+def _labelled_performance(records: list[dict]) -> dict:
+    """
+    Precision, recall and false-positive rate of the model's threshold on the
+    predictions that have a true outcome attached. Counts are included so a
+    small sample is visible.
+    """
+    labelled = [r for r in records if "is_fraud" in r]
+    tp = sum(
+        r["is_fraud"] and r["fraud_probability"] >= r["threshold"] for r in labelled
+    )
+    fp = sum(
+        not r["is_fraud"] and r["fraud_probability"] >= r["threshold"] for r in labelled
+    )
+    fn = sum(
+        r["is_fraud"] and r["fraud_probability"] < r["threshold"] for r in labelled
+    )
+    tn = len(labelled) - tp - fp - fn
+
+    def ratio(num: int, den: int) -> float | None:
+        return round(num / den, 4) if den else None
+
+    return {
+        "labelled": len(labelled),
+        "fraud": tp + fn,
+        "fraud_rate": ratio(tp + fn, len(labelled)),
+        "true_positives": tp,
+        "false_positives": fp,
+        "false_negatives": fn,
+        "true_negatives": tn,
+        "precision": ratio(tp, tp + fp),
+        "recall": ratio(tp, tp + fn),
+        "false_positive_rate": ratio(fp, fp + tn),
+    }
 
 
 def _training_references(path: str) -> dict:

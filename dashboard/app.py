@@ -502,6 +502,19 @@ try:
             .encode(x=alt.X("decision:N", axis=alt.Axis(labelAngle=0)), y="share:Q"),
             width="stretch",
         )
+    perf = stats.get("labelled_performance") or {}
+    if perf.get("labelled"):
+        st.caption(
+            f"Model performance on {perf['labelled']} predictions with a known "
+            f"outcome ({perf['fraud']} fraud), at the model threshold"
+        )
+        p1, p2, p3 = st.columns(3)
+        for col, label, key in (
+            (p1, "Precision", "precision"),
+            (p2, "Recall", "recall"),
+            (p3, "False-positive rate", "false_positive_rate"),
+        ):
+            col.metric(label, "n/a" if perf[key] is None else f"{perf[key]:.1%}")
     for alert in stats["alerts"]:
         st.warning(alert)
     if not stats["alerts"]:

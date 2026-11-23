@@ -254,6 +254,26 @@ def resolve_review(transaction_id: str, review: ReviewAction):
     return {**resolution, "final_report": final_report}
 
 
+class Outcome(BaseModel):
+    """The true outcome of a scored transaction, such as a confirmed chargeback."""
+
+    is_fraud: bool
+
+
+@app.post("/feedback/{transaction_id}")
+def record_outcome(transaction_id: str, outcome: Outcome):
+    """
+    Attach the true outcome to a recent prediction. /stats then reports the
+    model's live precision, recall and false-positive rate on labelled traffic.
+    """
+    try:
+        return monitor.label(transaction_id, outcome.is_fraud)
+    except KeyError as e:
+        raise HTTPException(
+            status_code=404, detail="No recent prediction for this ID."
+        ) from e
+
+
 @app.get("/metrics")
 def get_metrics():
     """

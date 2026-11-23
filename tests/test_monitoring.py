@@ -99,3 +99,26 @@ def test_a_restarted_monitor_rebuilds_stats_and_the_queue_from_its_log(
     assert restarted.stats()["requests_total"] == 3
     assert [r["transaction_id"] for r in restarted.pending_reviews()] == ["b"]
     assert restarted.stats()["review_queue"]["resolved"] == 1
+
+
+def test_true_outcomes_give_live_precision_recall_and_false_positive_rate(
+    tmp_path,
+) -> None:
+    log = tmp_path / "monitor.jsonl"
+    monitor = Monitor({}, str(log))
+    # threshold 0.2, every score 0.3: all four are predicted fraud
+    for tx in "abcd":
+        _ok(monitor, tx, "deny", True)
+    monitor.label("a", True)
+    monitor.label("b", True)
+    monitor.label("c", False)
+
+    perf = monitor.stats()["labelled_performance"]
+
+    assert perf["labelled"] == 3
+    assert perf["precision"] == pytest.approx(2 / 3, abs=1e-4)
+    assert perf["recall"] == 1.0
+    assert perf["false_positive_rate"] == 1.0
+    with pytest.raises(KeyError):
+        monitor.label("never-scored", True)
+    assert Monitor({}, str(log)).stats()["labelled_performance"] == perf

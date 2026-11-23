@@ -5,6 +5,7 @@ import joblib
 import pandas as pd
 
 from src.agents.state import FraudDetectionState
+from src.data.features import prepare_transaction
 from src.explainability.shap_explainer import build_explainer, explain_single_prediction
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,6 +23,10 @@ print("Loading model bundle...")
 bundle = joblib.load(MODEL_PATH)
 MODEL = bundle["model"]
 THRESHOLD = bundle["threshold"]
+# Frequency maps, medians and category codes fitted on train (see
+# src/data/preprocessing.inference_artifacts). Older bundles lack them, and
+# then gaps fall back to 0.
+PREPROCESSING = bundle.get("preprocessing", {})
 
 print("Loading SHAP explainer...")
 # Built from the model at startup rather than unpickled: the tree-path explainer
@@ -41,24 +46,15 @@ MEDIUM_RISK_FRACTION = float(os.environ.get("POLICY_MEDIUM_RISK_FRACTION", "0.5"
 
 
 def _supplied_feature_count(tx_data: dict) -> int:
-    """Count model features sent as numbers; strings and gaps are filled with 0."""
-    return sum(
-        isinstance(tx_data.get(col), (int, float))
-        and not isinstance(tx_data.get(col), bool)
-        for col in FEATURE_COLS
-    )
+    """
+    Count model features the caller sent. A null counts: it says the value is
+    missing, which training also saw and filled with the median.
+    """
+    return sum(col in tx_data for col in FEATURE_COLS)
 
 
 def _encode_features(tx_data: dict) -> dict:
-
-    encoded = {}
-    for col in FEATURE_COLS:
-        val = tx_data.get(col, 0)
-        if isinstance(val, str):
-            val = 0
-        encoded[col] = val
-
-    return encoded
+    return prepare_transaction(tx_data, PREPROCESSING, FEATURE_COLS)
 
 
 def risk_scorer_node(state: FraudDetectionState) -> dict:
