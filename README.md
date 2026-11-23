@@ -34,8 +34,8 @@ A transaction goes through LangGraph nodes that share one typed state. The risk 
 
 | Condition | Decision | Human review |
 | :-------- | :------- | :----------: |
-| Fewer than half of the 445 model features supplied | flag | yes |
-| Probability at or above the threshold (0.1885) | deny | yes |
+| Fewer than half of the 446 model features supplied | flag | yes |
+| Probability at or above the threshold (0.0958) | deny | yes |
 | Probability between half the threshold and the threshold | flag | yes |
 | Probability below half the threshold | approve | no |
 
@@ -45,7 +45,7 @@ The first rule exists because missing features are filled with 0 before scoring,
 
 | Feature | What it does |
 | :------ | :----------- |
-| Fraud model | XGBoost on 590,540 IEEE-CIS transactions, split by time so the test set is the newest 20%. Features include hour of day, missing-value flags, frequency encodings and per-card transaction counts and amounts over the last hour and day. The code also computes the seconds since the same card's previous transaction, but the shipped model was trained before that feature existed and will use it after the next retrain. SMOTE raises the fraud share in training from 3.4% to 9.1%. Optuna tunes the model on a validation slice, and the decision threshold is picked on that slice too. |
+| Fraud model | XGBoost on 590,540 IEEE-CIS transactions, split by time so the test set is the newest 20%. Features include hour of day, missing-value flags, frequency encodings per-card transaction counts and amounts over the last hour and day, and the seconds since the same card's previous transaction. SMOTE raises the fraud share in training from 3.4% to 9.1%. Optuna tunes the model on a validation slice, and the decision threshold is picked on that slice too. |
 | Explanations | TreeSHAP gives the features that pushed each score up or down, with the feature value, SHAP contribution and direction. |
 | Decision workflow | LangGraph routes each transaction to approve, deny or human review using the rules above. |
 | Review queue | A case that needs a human pauses the LangGraph run before the human review node, and its state is saved by a checkpointer. `/predict` answers straight away with the case marked as awaiting review. When an analyst approves or denies it through `POST /reviews/{id}`, the decision is written into the saved state and the run resumes through human review and the report node, which returns the final report. The time each case waited is recorded. |
@@ -61,11 +61,19 @@ The first rule exists because missing features are filled with 0 before scoring,
 
 | Model | AUC-ROC | AUC-PR | Precision | Recall | F1 |
 | :---- | :-----: | :----: | :-------: | :----: | :-: |
-| XGBoost baseline | 0.8925 | 0.4956 | 0.7917 | 0.3105 | 0.4461 |
-| Optuna-tuned XGBoost | 0.8974 | 0.5174 | 0.8100 | 0.3295 | 0.4684 |
-| Tuned, threshold 0.1885 from validation | 0.8974 | 0.5174 | 0.5774 | 0.4508 | 0.5063 |
+| XGBoost baseline | 0.8925 | 0.4959 | 0.7783 | 0.3196 | 0.4532 |
+| Optuna-tuned XGBoost | 0.8875 | 0.5110 | 0.8022 | 0.3233 | 0.4609 |
+| Tuned, threshold 0.0958 from validation | 0.8875 | 0.5110 | 0.5480 | 0.4722 | 0.5073 |
 
-The retrain notebook also compares SMOTE with XGBoost class weighting (`scale_pos_weight`) and XGBoost with LightGBM. Those comparisons have not been run yet, so they have no numbers here.
+The same run compared imbalance handling and model families, each at a 0.5 cutoff:
+
+| Model | AUC-ROC | AUC-PR | Precision | Recall | F1 |
+| :---- | :-----: | :----: | :-------: | :----: | :-: |
+| XGBoost, SMOTE | 0.8925 | 0.4959 | 0.7783 | 0.3196 | 0.4532 |
+| XGBoost, class weighting (`scale_pos_weight`) | 0.8725 | 0.4744 | 0.2511 | 0.6046 | 0.3548 |
+| LightGBM, SMOTE | 0.8931 | 0.4942 | 0.7443 | 0.3403 | 0.4671 |
+
+SMOTE beats class weighting on both AUC scores, and LightGBM is level with XGBoost, so the shipped model stays XGBoost with SMOTE. The previous model, trained without the time-since-previous feature, scored 0.8974 AUC-ROC and 0.5174 AUC-PR on the same test set, a little higher; this one has a slightly higher F1 at its threshold (0.5073 against 0.5063).
 
 Every row is scored once on the newest 20% of transactions (118,108 rows). Imputation, frequency maps, tuning and the threshold use training data only, and the newest 20% of the training period is held out as validation before SMOTE. [`notebooks/colab_retrain.ipynb`](notebooks/colab_retrain.ipynb) reproduces the run, and each run is logged in [`model_log.json`](notebooks/data/model_results/model_log.json).
 
@@ -74,7 +82,7 @@ From the data and the model:
 - The fraud rate moves between 2.0% and 4.8% across the 182 days of transactions.
 - 214 features are more than half missing, and each gets a flag column.
 - `TransactionAmt` on its own separates fraud poorly.
-- By mean SHAP value on 5,000 test rows, raw Vesta fields such as `C13`, `M4` and `V317` lead. The hour feature `tx_hour_sin` ranks fifth, and 5 of the top 20 features are engineered: three hour features plus the card and email-domain frequency counts. The last cells of the retrain notebook reproduce this.
+- By mean SHAP value on 5,000 test rows, raw fields lead: `C13`, `V317`, `TransactionAmt`, `C1` and `M4`. The card frequency count `card1_freq` ranks sixth, and 4 of the top 20 features are engineered: `card1_freq`, `tx_hour`, `card2_freq` and `P_emaildomain_freq`. The time since the previous transaction is not in the top 20. [`shap_top_features.csv`](notebooks/data/model_results/shap_top_features.csv) has the full list, and the last cells of the retrain notebook reproduce it.
 
 ### News classifier
 

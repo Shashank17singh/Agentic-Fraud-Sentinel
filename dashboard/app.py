@@ -203,7 +203,7 @@ df = load_log()
 if not df.empty:
     # The last run is the production model; compare it with the latest baseline run.
     prod = df.iloc[-1]
-    baselines = df[df["model_name"].str.contains("baseline")]
+    baselines = df[df["model_name"] == "xgb_baseline"]
     base = baselines.iloc[-1] if not baselines.empty else prod
 
     col1, col2, col3, col4 = st.columns(4)

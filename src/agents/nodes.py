@@ -5,7 +5,7 @@ import joblib
 import pandas as pd
 
 from src.agents.state import FraudDetectionState
-from src.explainability.shap_explainer import explain_single_prediction
+from src.explainability.shap_explainer import build_explainer, explain_single_prediction
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -16,7 +16,6 @@ else:
 
 
 MODEL_PATH = os.path.join(DATA_DIR, "models", "xgboost_production.pkl")
-EXPLAINER_PATH = os.path.join(DATA_DIR, "models", "shap_explainer.pkl")
 
 
 print("Loading model bundle...")
@@ -25,7 +24,9 @@ MODEL = bundle["model"]
 THRESHOLD = bundle["threshold"]
 
 print("Loading SHAP explainer...")
-EXPLAINER = joblib.load(EXPLAINER_PATH)
+# Built from the model at startup rather than unpickled: the tree-path explainer
+# needs no background data, and a pickle breaks across Python versions.
+EXPLAINER = build_explainer(MODEL, None)
 
 
 FEATURE_COLS = MODEL.get_booster().feature_names
